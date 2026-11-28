@@ -58,6 +58,9 @@ const proxyError = ref('')
 // A main-frame page load failed (UX-010): the retry card covers the empty panel until a load starts.
 const pageError = ref<{ id: string; description: string } | undefined>()
 const shownPageError = computed(() => (pageError.value && current.value && pageError.value.id === current.value.id ? pageError.value : undefined))
+// Page history per account (UX-013): main pushes it after every navigation and when a view is attached.
+const navStates = ref<Record<string, { canBack: boolean; canForward: boolean }>>({})
+const nav = computed(() => (current.value ? navStates.value[current.value.id] : undefined) ?? { canBack: false, canForward: false })
 const settingsTab = ref<string | undefined>()
 // An external link that matches several accounts (D40): main asks, we answer once. Main detaches the view while it is open.
 const choosing = ref<LinkChoice | undefined>()
@@ -103,6 +106,7 @@ function wipe() {
   lockChip.value = null
   split.value = undefined
   pageError.value = undefined
+  navStates.value = {}
 }
 
 // Any layer that must have the service view off the window (D59): Settings, Add account, the link chooser, the dialogs.
@@ -175,6 +179,7 @@ onMounted(async () => {
     sideWidthPx.value = l.width
   })
   window.guisedesk.onSplit?.((s) => (split.value = s))
+  window.guisedesk.onNavState?.((s) => (navStates.value = { ...navStates.value, [s.id]: { canBack: s.canBack, canForward: s.canForward } }))
   window.guisedesk.onPageError?.((p) => {
     if (p.cleared) {
       if (pageError.value?.id === p.id) pageError.value = undefined
@@ -286,6 +291,12 @@ function reload(id: string) {
 }
 function openSite(id: string) {
   window.guisedesk.openSite(id)
+}
+function back(id: string) {
+  window.guisedesk.back(id)
+}
+function forward(id: string) {
+  window.guisedesk.forward(id)
 }
 
 function lockNow() {
@@ -482,7 +493,7 @@ async function add(input: Parameters<Window['guisedesk']['add']>[0]) {
     <div v-if="sideHidden" class="sidestrip"><button class="showside" title="Show sidebar (Ctrl+B)" aria-label="Show sidebar" @click="hideSidebar(false)"><svg class="i" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" /></svg></button></div>
     <Sidebar v-if="!sideHidden" :width="sideWidthPx" @hide="hideSidebar(true)" @resize="resizeSidebar" :accounts="shown" :selected-id="selectedId" :counts="counts" :asleep="asleepIds" :collapsed="collapsed" :update="update.state === 'available'" :inbox-unread="inbox.unread" @inbox="openInbox" @update="openUpdates" @toggle="toggleSidebar" @select="select" @add="openAdd" @mute="mute" @sleep="sleepNow" @reorder="reorder" @settings="openSettings" @account="openSheet" />
     <main class="main">
-      <TopBar v-if="!settingsOpen && current" :account="current" :asleep="!!sleep[current.id]" :lock="lockChip" :proxy="current.proxy" :split="!!split" @lock-menu="openLockMenu" @proxy-menu="openProxyMenu(current!.id)" @reload="reload(current!.id)" @mute="(m) => mute(current!.id, m)" @lock="lockNow" @sleep="sleepNow(current!.id)" @settings="openSheet(current.id)" @reset-zoom="resetZoom(current!.id)" :ads-on="block.ads" :blocked="block.accounts[current.id]?.blocked ?? 0" :popup="block.accounts[current.id]?.popup" @open-popup="openBlockedPopup(current!.id)" @shield="shieldMenu(current!.id)" @extensions="extensionMenu(current!.id)" @split-menu="openSplitMenu" @close-split="closeSplit" />
+      <TopBar v-if="!settingsOpen && current" :account="current" :asleep="!!sleep[current.id]" :lock="lockChip" :proxy="current.proxy" :split="!!split" :nav="nav" @lock-menu="openLockMenu" @proxy-menu="openProxyMenu(current!.id)" @reload="reload(current!.id)" @back="back(current!.id)" @forward="forward(current!.id)" @mute="(m) => mute(current!.id, m)" @lock="lockNow" @sleep="sleepNow(current!.id)" @settings="openSheet(current.id)" @reset-zoom="resetZoom(current!.id)" :ads-on="block.ads" :blocked="block.accounts[current.id]?.blocked ?? 0" :popup="block.accounts[current.id]?.popup" @open-popup="openBlockedPopup(current!.id)" @shield="shieldMenu(current!.id)" @extensions="extensionMenu(current!.id)" @split-menu="openSplitMenu" @close-split="closeSplit" />
       <Settings v-if="settingsOpen" :accounts="accounts" :disabled="disabled" :update="update" :tab="settingsTab" @check="checkUpdate" @apply="applyUpdate" @back="closeSettings" @toggle="toggleService" @open="(id) => (sheetId = id)" @unmute="(id) => mute(id, false)" @reset="resetting = true" @shortcuts="openHelp" />
       <AsleepPanel v-else-if="sleeping" :account="sleeping" :minutes="sleep[sleeping.id].minutes" @wake="select(sleeping.id)" />
       <div v-else-if="!accounts.length" class="panel empty">

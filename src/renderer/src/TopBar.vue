@@ -19,8 +19,10 @@ const props = defineProps<{
   proxy?: string
   /** Split view (D62): the second account sits next to this one. */
   split?: boolean
+  /** Page history (UX-013): Back and Forward are enabled only in that direction. */
+  nav?: { canBack: boolean; canForward: boolean }
 }>()
-const emit = defineEmits<{ reload: []; mute: [muted: boolean]; lock: []; sleep: []; settings: []; 'reset-zoom': []; 'open-popup': []; shield: []; extensions: []; 'lock-menu': []; 'proxy-menu': []; 'split-menu': []; 'close-split': [] }>()
+const emit = defineEmits<{ reload: []; back: []; forward: []; mute: [muted: boolean]; lock: []; sleep: []; settings: []; 'reset-zoom': []; 'open-popup': []; shield: []; extensions: []; 'lock-menu': []; 'proxy-menu': []; 'split-menu': []; 'close-split': [] }>()
 
 const service = computed(() => presetFor(props.account.serviceId)?.name ?? props.account.custom?.name ?? props.account.serviceId)
 // One chip: asleep, then muted, then always on (live chat or an always-on override); a live feed account has none.
@@ -56,6 +58,10 @@ const proxyText = computed(() => {
     <button v-if="!asleep && split" class="split splitbtn" title="Close split view" @click="emit('close-split')">Close split</button>
     <button v-else-if="!asleep" class="split splitbtn" title="Show a second account side by side" @click="emit('split-menu')">Split</button>
     <button v-if="!asleep" class="extbtn" title="Extensions" aria-label="Extensions" @click="emit('extensions')"><svg class="i" viewBox="0 0 24 24"><path d="M10 3h4v3a2 2 0 1 0 4 0V3h0a1 1 0 0 1 1 1v5h-3a2 2 0 1 0 0 4h3v6a1 1 0 0 1-1 1h-5v-3a2 2 0 1 0-4 0v3H4a1 1 0 0 1-1-1v-6h3a2 2 0 1 0 0-4H3V4a1 1 0 0 1 1-1h6z" /></svg></button>
+    <div class="nav">
+      <button class="ib back" title="Back" aria-label="Back" :disabled="!nav?.canBack" @click="emit('back')"><svg class="i" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" /></svg></button>
+      <button class="ib forward" title="Forward" aria-label="Forward" :disabled="!nav?.canForward" @click="emit('forward')"><svg class="i" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" /></svg></button>
+    </div>
     <div class="actions">
       <button class="ib" title="Reload" aria-label="Reload" @click="emit('reload')"><svg class="i" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8" /><path d="M21 3v5h-5" /></svg></button>
       <button v-if="account.muted" class="ib" title="Unmute" aria-label="Unmute" @click="emit('mute', false)"><svg class="i" viewBox="0 0 24 24"><path d="M8.7 3A6 6 0 0 1 18 8c0 3 .5 5.2 1.2 6.8M17 17H3s3-2 3-9c0-.8.1-1.5.4-2.2" /><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0M2 2l20 20" /></svg></button>
@@ -68,6 +74,8 @@ const proxyText = computed(() => {
 </template>
 
 <style scoped>
+.nav { display: flex; gap: 6px; margin-left: 10px; }
+.nav .ib:disabled, .nav .ib:disabled:hover { opacity: .35; color: var(--muted); background: transparent; cursor: default; }
 .shield { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
 .shield .i { width: 12px; height: 12px; }
 .popup { cursor: pointer; }

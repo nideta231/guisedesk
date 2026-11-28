@@ -58,6 +58,7 @@ import { flushSessions, flushThenClose, sessionKeys } from './sessionlife'
 import { collectLogins, createLoginScheduler } from './logincheck'
 import { onceMainFrameSettled } from './mainframe'
 import { isReportableLoadError } from './pageerror'
+import { goBack, goForward, navState } from './nav'
 import { watchViewHealth } from './viewhealth'
 
 // Both must run before `ready`. setName first: it resets the default userData path, which setPath then overrides,
@@ -767,6 +768,14 @@ function viewFor(a: Account): WebContentsView {
       if (w && !w.isDestroyed() && attached === v) attach(w, v!)
     })
     wc.on('did-finish-load', () => sendPageError({ id: a.id, cleared: true }))
+    // Back and Forward (UX-013): the page's history changes on every navigation.
+    const pushNav = () => {
+      const w = mainWin
+      if (w && !w.isDestroyed()) w.webContents.send('accounts:navstate', { id: a.id, ...navState(wc.navigationHistory) })
+    }
+    wc.on('did-navigate', pushNav)
+    wc.on('did-navigate-in-page', pushNav)
+    wc.on('did-start-navigation', pushNav)
     // WhatsApp keeps its login in IndexedDB, so the cookie check cannot see it (D50). Once the page is up, look for
     // the QR screen versus the chat panel and record whether the login survived.
     if (a.serviceId === 'whatsapp') wc.once('did-finish-load', () => scheduleLoginCheck(2500))
@@ -823,6 +832,9 @@ function attach(win: BrowserWindow, v: WebContentsView): void {
   if (!win.contentView.children.includes(v)) win.contentView.addChildView(v)
   if (second && !win.contentView.children.includes(second)) win.contentView.addChildView(second)
   layoutViews(win)
+  // A rebuilt or reattached view starts the top bar with its real history (UX-013).
+  const a = owner.get(v.webContents.id)
+  if (a) win.webContents.send('accounts:navstate', { id: a.id, ...navState(v.webContents.navigationHistory) })
 }
 
 function detach(win: BrowserWindow, v: WebContentsView): void {
@@ -1828,6 +1840,17 @@ function createWindow(): BrowserWindow {
     if (!a) return
     if (hib.isAsleep(a.id)) show(win, a, pushSleep)
     else views.get(a.id)?.webContents.reload()
+  })
+  // Top bar Back and Forward (UX-013): a guarded call into the account's page history.
+  gipc.on('accounts:back', (e: { sender: { id: number } }, id: string) => {
+    const a = fromApp(e) && enabled().find((x) => x.id === id)
+    const v = a && views.get(a.id)
+    if (v && !v.webContents.isDestroyed()) goBack(v.webContents.navigationHistory)
+  })
+  gipc.on('accounts:forward', (e: { sender: { id: number } }, id: string) => {
+    const a = fromApp(e) && enabled().find((x) => x.id === id)
+    const v = a && views.get(a.id)
+    if (v && !v.webContents.isDestroyed()) goForward(v.webContents.navigationHistory)
   })
   // Retry card's "Open site in browser": the account's start page outside GuiseDesk (UX-010).
   gipc.on('accounts:open-site', (e: { sender: { id: number } }, id: string) => {

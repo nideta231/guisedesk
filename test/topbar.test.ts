@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from 'vitest'
 import App from '../src/renderer/src/App.vue'
 import TopBar from '../src/renderer/src/TopBar.vue'
 import { panelBounds, TOP_BAR_H, TOP_BAR_GAP, PAD_TOP } from '../src/main/layout'
+import { goBack, goForward, navState } from '../src/main/nav'
+import { appOnly } from '../src/main/guard'
 
 const wa = { id: 'wa1', serviceId: 'whatsapp', label: 'Personal', colour: '#2f9e6e', order: 1 }
 const ig = { id: 'ig1', serviceId: 'instagram', label: 'Shop', colour: '#b04c7a', order: 2 }
@@ -159,5 +161,75 @@ describe('App lock countdown', () => {
     expect(w.find('.top .locks').attributes('title')).toBe('Idle: 10 min without use')
     await w.find('.top .locks').trigger('click')
     expect(lockMenu).toHaveBeenCalled()
+  })
+})
+
+describe('TopBar Back and Forward (UX-013)', () => {
+  it('shows both disabled without history, enabled with it, and emits the direction', async () => {
+    const off = mount(TopBar, { props: { account: wa, asleep: false, nav: { canBack: false, canForward: false } } })
+    const b0 = off.find('[aria-label="Back"]')
+    const f0 = off.find('[aria-label="Forward"]')
+    expect(b0.attributes('disabled')).toBeDefined()
+    expect(f0.attributes('disabled')).toBeDefined()
+    expect(b0.element.compareDocumentPosition(off.find('[aria-label="Reload"]').element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    const on = mount(TopBar, { props: { account: wa, asleep: false, nav: { canBack: true, canForward: true } } })
+    expect(on.find('[aria-label="Back"]').attributes('disabled')).toBeUndefined()
+    expect(on.find('[aria-label="Forward"]').attributes('disabled')).toBeUndefined()
+    await on.find('[aria-label="Back"]').trigger('click')
+    await on.find('[aria-label="Forward"]').trigger('click')
+    expect(on.emitted('back')).toHaveLength(1)
+    expect(on.emitted('forward')).toHaveLength(1)
+  })
+
+  it('App passes main history to the bar and sends a click back to the bridge', async () => {
+    let navPush: (s: { id: string; canBack: boolean; canForward: boolean }) => void = () => {}
+    const back = vi.fn()
+    const forward = vi.fn()
+    ;(window as unknown as { guisedesk: unknown }).guisedesk = {
+      lockState: async () => ({ state: 'unlocked' }),
+      onLock: () => {},
+      state: async () => ({ accounts: [wa], selectedId: 'wa1', disabledServices: [] }),
+      unread: async () => ({}),
+      onUnread: () => {},
+      onSelected: () => {},
+      onOpenSettings: () => {},
+      sleep: async () => ({}),
+      onSleep: () => {},
+      onSidebar: () => {},
+      onZoom: () => {},
+      onLinkChoose: () => {},
+      onRowMenuPick: () => {},
+      onNavState: (cb: typeof navPush) => (navPush = cb),
+      onUpdate: () => {},
+      updateState: async () => ({ state: 'none' }),
+      select: vi.fn(),
+      dialog: vi.fn(),
+      reload: vi.fn(),
+      back,
+      forward
+    }
+    const w = mount(App)
+    await flushPromises()
+    expect(w.find('[aria-label="Back"]').attributes('disabled')).toBeDefined()
+    navPush({ id: 'wa1', canBack: true, canForward: false })
+    await flushPromises()
+    expect(w.find('[aria-label="Back"]').attributes('disabled')).toBeUndefined()
+    expect(w.find('[aria-label="Forward"]').attributes('disabled')).toBeDefined()
+    await w.find('[aria-label="Back"]').trigger('click')
+    expect(back).toHaveBeenCalledWith('wa1')
+    expect(forward).not.toHaveBeenCalled()
+  })
+
+  it('fake main history goes back only for the app sender and never past the end', () => {
+    const h = { canGoBack: () => true, canGoForward: () => false, goBack: vi.fn(), goForward: vi.fn() }
+    const run = appOnly((e: { sender: { id: number } }) => e.sender.id === 1, () => goBack(h))
+    run({ sender: { id: 2 } })
+    expect(h.goBack).not.toHaveBeenCalled()
+    run({ sender: { id: 1 } })
+    expect(h.goBack).toHaveBeenCalledOnce()
+    expect(goForward(h)).toBe(false)
+    expect(h.goForward).not.toHaveBeenCalled()
+    expect(navState(h)).toEqual({ canBack: true, canForward: false })
   })
 })

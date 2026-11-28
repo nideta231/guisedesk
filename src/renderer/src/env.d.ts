@@ -191,6 +191,10 @@ interface Window {
     onShortcuts(cb: () => void): Unsubscribe
     /** Top bar Reload: reloads the account's view, or wakes it when asleep. */
     reload(id: string): void
+    /** Top bar Back and Forward (UX-013): move in the account page's history. */
+    back(id: string): void
+    forward(id: string): void
+    onNavState(cb: (s: { id: string; canBack: boolean; canForward: boolean }) => void): Unsubscribe
     /** Retry card (UX-010): opens the account's start page in the system browser. */
     openSite(id: string): void
     /** A main-frame page load failed, or a later load cleared the retry card. */
