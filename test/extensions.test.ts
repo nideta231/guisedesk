@@ -236,6 +236,26 @@ describe('extension download (D49)', () => {
     expect(await fetch(WAWP)).toBe(a)
     expect(download).toHaveBeenCalledOnce()
   })
+  it('removing during an in-flight download deletes it again and the next fetch starts fresh', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'gd-ext-'))
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const download = vi.fn(async (id: string, dir: string) => {
+      await gate
+      return unpack(dir, id, '5.2.9_0')
+    })
+    const fetch = createExtensionFetcher(root, download)
+    const first = fetch(WAWP)
+    const removed = fetch.remove(WAWP)
+    release()
+    await first
+    await removed
+    expect(listInstalled(root)).toEqual([])
+    expect(existsSync(join(root, WAWP))).toBe(false)
+    expect(await fetch(WAWP)).toBe(join(root, WAWP, '5.2.9_0'))
+    expect(download).toHaveBeenCalledTimes(2)
+    expect(listInstalled(root).map((x) => x.id)).toEqual([WAWP])
+  })
 })
 
 describe('TopBar puzzle chip', () => {

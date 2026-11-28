@@ -193,11 +193,16 @@ export function listInstalled(extDir: string): InstalledExtension[] {
 /**
  * One download per extension at a time, shared by every caller: concurrent callers wait for the same promise.
  * download(id, extDir) unpacks into <extDir>/<id>/<version>_0 and returns that path. `force` skips the installed
- * copy, for an update check that already knows a newer version exists (D56).
+ * copy, for an update check that already knows a newer version exists (D56). remove(id) tombstones a download that
+ * is still running and deletes the folder again when it settles, so Remove during Add really removes it.
  */
-export function createExtensionFetcher(extDir: string, download: (id: string, dir: string) => Promise<string>) {
+export type ExtensionFetcher = ((id: string, force?: boolean) => Promise<string>) & { remove(id: string): Promise<void> }
+
+export function createExtensionFetcher(extDir: string, download: (id: string, dir: string) => Promise<string>): ExtensionFetcher {
   const inFlight = new Map<string, Promise<string>>()
-  return (id: string, force = false): Promise<string> => {
+  const tombstones = new Set<string>()
+  const fetch = ((id: string, force = false): Promise<string> => {
+    if (tombstones.has(id)) return Promise.reject(new Error('the extension is being removed'))
     const ready = force || inFlight.has(id) ? null : readyCopy(extDir, id)
     if (ready) return Promise.resolve(ready)
     let p = inFlight.get(id)
@@ -206,5 +211,21 @@ export function createExtensionFetcher(extDir: string, download: (id: string, di
       inFlight.set(id, p)
     }
     return p
+  }) as ExtensionFetcher
+  fetch.remove = async (id: string): Promise<void> => {
+    tombstones.add(id)
+    const p = inFlight.get(id)
+    if (p) {
+      try {
+        await p
+      } catch {
+        /* a failed download leaves nothing to keep */
+      }
+    }
+    inFlight.delete(id)
+    // The download may have renamed its temp folder into place after Remove began: delete the whole id again.
+    rmSync(join(extDir, id), { recursive: true, force: true })
+    tombstones.delete(id)
   }
+  return fetch
 }

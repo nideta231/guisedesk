@@ -1910,7 +1910,7 @@ function createWindow(): BrowserWindow {
       const held = owner.get(v.webContents.id)
       if (held) held.extensions = accounts.find((x) => x.id === aid)?.extensions
     }
-    rmSync(join(extensionsDir(dir), id), { recursive: true, force: true })
+    await fetchExtension.remove(id)
     appendEvent(dir, `extension removed ${id}`)
     onExtChange()
     return extList()
