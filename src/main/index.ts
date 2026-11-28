@@ -626,6 +626,8 @@ function activateExtension(wc: Electron.WebContents, extId: string, win: Browser
     console.error('[guisedesk] extension click failed', extId, err)
   }
 }
+// Names reserved by downloads that started but whose file does not exist yet, so two quick saves cannot collide.
+const reservedDownloads = new Set<string>()
 const isExistingFolder = (path: string): boolean => {
   try {
     return statSync(path).isDirectory()
@@ -642,9 +644,16 @@ function hookDownloads(ses: Electron.Session): void {
     // Remember the fallback so the next download does not look at the missing drive again.
     if (s.dir && folder !== s.dir) saveDownloads(dir, { ...s, dir: folder })
     const name = item.getFilename()
-    if (s.ask) item.setSaveDialogOptions({ defaultPath: uniquePath(folder, name, existsSync) })
-    else item.setSavePath(uniquePath(folder, name, existsSync))
+    const target = uniquePath(folder, name, existsSync, reservedDownloads)
+    if (s.ask) item.setSaveDialogOptions({ defaultPath: target })
+    else item.setSavePath(target)
     item.once('done', (_ev, state) => {
+      // Release on completed, failed and cancelled alike, so the name is free for the next attempt.
+      reservedDownloads.delete(target)
+      try {
+        const actual = item.getSavePath()
+        if (actual) reservedDownloads.delete(actual)
+      } catch { /* the item may already be gone */ }
       const outcome = downloadOutcome(state)
       if (outcome === 'silent') return
       const path = item.getSavePath()

@@ -39,13 +39,17 @@ export function pickFolder(saved: string | undefined, system: string, exists: (p
   return saved && exists(saved) ? saved : system
 }
 
-/** dir/name, or dir/name (1).ext, (2)... for the first one that does not exist. */
-export function uniquePath(dir: string, name: string, exists: (path: string) => boolean): string {
+/**
+ * dir/name, or dir/name (1).ext, (2)... for the first one that does not exist and is not reserved by a download
+ * that started a moment ago. The picked name is reserved in the shared set so two events cannot choose the same path.
+ */
+export function uniquePath(dir: string, name: string, exists: (path: string) => boolean, reserved?: Set<string>): string {
   const safe = safeName(name)
   const ext = extname(safe)
   const stem = safe.slice(0, safe.length - ext.length)
   let p = join(dir, safe)
-  for (let n = 1; exists(p); n++) p = join(dir, `${stem} (${n})${ext}`)
+  for (let n = 1; exists(p) || reserved?.has(p); n++) p = join(dir, `${stem} (${n})${ext}`)
+  reserved?.add(p)
   return p
 }
 

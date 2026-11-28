@@ -43,6 +43,17 @@ describe('pickFolder', () => {
   })
 })
 
+describe('uniquePath reserved names', () => {
+  it('gives two quick downloads distinct names before either file exists, and release frees the name', () => {
+    const reserved = new Set<string>()
+    const none = () => false
+    expect(uniquePath('/d', 'a.png', none, reserved)).toBe('/d/a.png')
+    expect(uniquePath('/d', 'a.png', none, reserved)).toBe('/d/a (1).png')
+    reserved.delete('/d/a.png')
+    expect(uniquePath('/d', 'a.png', none, reserved)).toBe('/d/a.png')
+  })
+})
+
 describe('downloadOutcome', () => {
   it('keeps a user cancel silent, reports a completed download as ok and an interruption as failed', () => {
     expect(downloadOutcome('cancelled')).toBe('silent')
