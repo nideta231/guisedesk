@@ -402,6 +402,24 @@ describe('SettingsExtensions remove confirm (UX-043)', () => {
   })
 })
 
+describe('SettingsExtensions service names (UX-044)', () => {
+  it('shows the service name for a preset account and the custom name, never the raw id', async () => {
+    const ext = { id: 'ext1', name: 'Helper', version: '1.0' }
+    const list = [
+      acc('wa1', 'whatsapp', 'Personal', 0),
+      acc('cu1', 'custom', 'Wiki', 1, { custom: { name: 'Team Wiki', url: 'https://wiki.example.com/' } })
+    ]
+    ;(window as unknown as { guisedesk: unknown }).guisedesk = { extensions: async () => [ext], removeExtension: vi.fn(async () => []) }
+    const w = mount(SettingsExtensions, { props: { accounts: list } })
+    await flushPromises()
+    const card = w.find('[data-ext="ext1"]')
+    expect(card.text()).toContain('WhatsApp')
+    expect(card.text()).toContain('Team Wiki')
+    expect(card.text()).not.toContain('whatsapp')
+    expect(card.text()).not.toContain('custom')
+  })
+})
+
 describe('Settings tabs from the keyboard (UX-005)', () => {
   const stubs = { SettingsServices: true, SettingsLock: true, SettingsNotifications: true, SettingsExtensions: true, SettingsGeneral: true }
   const open = () => mount(Settings, { props: { accounts, disabled: [] }, global: { stubs } })

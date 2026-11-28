@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { presetFor } from '../../main/presets'
 
 const props = defineProps<{ accounts: AccountRow[] }>()
 const list = ref<ExtensionRow[]>([])
@@ -85,7 +86,7 @@ async function toggle(a: AccountRow, id: string) {
     <div v-for="x in list" :key="x.id" class="card ext" :data-ext="x.id">
       <h4>{{ x.name }} <span class="ver">{{ x.version }}</span><span v-if="x.updated" class="updated">Updated {{ x.updated }}</span></h4>
       <div v-for="a in rows" :key="a.id" class="sr">
-        <span class="t"><b>{{ a.label }}</b><span>{{ a.serviceId }}</span></span>
+        <span class="t"><b>{{ a.label }}</b><span>{{ presetFor(a.serviceId)?.name ?? a.custom?.name ?? 'Custom site' }}</span></span>
         <button class="tg" :class="{ on: a.extensions?.includes(x.id) }" role="switch" :aria-checked="!!a.extensions?.includes(x.id)" :aria-label="`${x.name} for ${a.label}`" @click="toggle(a, x.id)"></button>
       </div>
       <div v-if="confirming === x.id" class="confirm">
