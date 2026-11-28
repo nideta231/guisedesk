@@ -37,6 +37,30 @@ describe('accounts store', () => {
     expect(JSON.parse(readFileSync(join(dir, 'accounts.json'), 'utf8'))).toHaveLength(1)
   })
 
+  it('drops bad rows, keeps unknown keys and gives a missing order the array index', () => {
+    const dir = tmp()
+    writeFileSync(
+      join(dir, 'accounts.json'),
+      JSON.stringify([null, {}, 'nope', { id: 'ok', serviceId: 'whatsapp', label: 'OK', colour: '#000', future: 7 }])
+    )
+    const loaded = loadAccounts(dir)
+    expect(loaded).toEqual([{ id: 'ok', serviceId: 'whatsapp', label: 'OK', colour: '#000', order: 3, future: 7 }])
+    saveAccounts(dir, loaded)
+    expect(loadAccounts(dir)).toEqual(loaded)
+  })
+
+  it('drops a duplicate id and keeps the first row', () => {
+    const dir = tmp()
+    writeFileSync(
+      join(dir, 'accounts.json'),
+      JSON.stringify([
+        { id: 'a', serviceId: 'whatsapp', label: 'First', colour: '#000', order: 0 },
+        { id: 'a', serviceId: 'whatsapp', label: 'Second', colour: '#000', order: 1 }
+      ])
+    )
+    expect(loadAccounts(dir).map((x) => x.label)).toEqual(['First'])
+  })
+
   it('returns accounts sorted by stored order', () => {
     const dir = tmp()
     writeFileSync(

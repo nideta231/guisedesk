@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { writeAtomic, type Fs } from './atomic'
+import { appendEvent } from './events'
 import { PARTS, type Part } from '../preload/blur'
 import { clampSplit } from './layout'
 import { checkShare, validateNewAccount, type NewAccountInput } from './validate'
@@ -34,10 +35,39 @@ export interface Account {
 
 const file = (dir: string) => join(dir, 'accounts.json')
 
+/** Keeps only usable rows, gives a missing order its array index and drops duplicate ids. Unknown keys stay on valid rows. */
+function sanitizeAccounts(rows: unknown[]): { accounts: Account[]; dropped: number } {
+  const seen = new Set<string>()
+  const kept: { row: Record<string, unknown>; index: number }[] = []
+  let dropped = 0
+  for (let index = 0; index < rows.length; index++) {
+    const r = rows[index]
+    if (!r || typeof r !== 'object' || Array.isArray(r)) {
+      dropped++
+      continue
+    }
+    const row = r as Record<string, unknown>
+    if (typeof row.id !== 'string' || typeof row.serviceId !== 'string' || typeof row.label !== 'string' || typeof row.colour !== 'string' || seen.has(row.id)) {
+      dropped++
+      continue
+    }
+    seen.add(row.id)
+    kept.push({ row, index })
+  }
+  const accounts = kept.map(({ row, index }) => ({
+    ...(row as unknown as Account),
+    order: typeof row.order === 'number' && Number.isFinite(row.order) ? row.order : index
+  }))
+  return { accounts, dropped }
+}
+
 export function loadAccounts(dir: string): Account[] {
   try {
     const data = JSON.parse(readFileSync(file(dir), 'utf8'))
-    return Array.isArray(data) ? data : []
+    if (!Array.isArray(data)) return []
+    const { accounts, dropped } = sanitizeAccounts(data)
+    if (dropped) appendEvent(dir, `accounts.json: dropped ${dropped} invalid row${dropped === 1 ? '' : 's'}`)
+    return accounts
   } catch {
     return []
   }
