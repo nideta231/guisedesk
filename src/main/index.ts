@@ -43,7 +43,7 @@ import { version } from '../../package.json'
 import { buildContextMenu, rowMenuItems } from './contextmenu'
 import { doneNotice, downloadOutcome, loadDownloads, pickFolder, saveDownloads, uniquePath } from './downloads'
 import { isHelpShortcut, isSwitcherShortcut, nextZoom, switchTarget, zoomKey, type KeyInput } from './shortcuts'
-import { sidebarOrder } from './services'
+import { accountsToUnload, sidebarOrder } from './services'
 import { PARTS, partsOn, type Part } from '../preload/blur'
 import { closePartitionPopups, onPartition, partitionKey, partitionOf } from './sharing'
 import { effectiveProxy, findProxyCredential, parseProxy, proxyLabel, proxyMenu, proxyRules, sameProxy, proxyHostOf } from './proxy'
@@ -1569,10 +1569,34 @@ function createWindow(): BrowserWindow {
     saveSelected(dir, next.id)
     show(win, next, pushSleep)
   }
+  // "Off" must stop the hidden pages too: close their views and popups, but never touch the partitions.
+  const unloadService = (serviceId: string) => {
+    const ids = accountsToUnload(accounts, [serviceId])
+    for (const id of ids) {
+      popups.closeFor(id)
+      if (id === splitB) endSplit()
+      if (id === attachedId) {
+        if (attached) detach(win, attached)
+        attached = undefined
+        attachedId = undefined
+      }
+      const v = views.get(id)
+      if (v) {
+        owner.delete(v.webContents.id)
+        views.delete(id)
+        void flushThenClose(v)
+      }
+      delete sleepState[id]
+      delete counts[id]
+    }
+    if (ids.length) appendEvent(dir, `service ${serviceId} turned off: unloaded ${ids.length} account${ids.length === 1 ? '' : 's'}`)
+    return ids
+  }
   gipc.handle('services:set', (e: { sender: { id: number } }, serviceId: string, on: boolean) => {
     if (!fromApp(e)) return undefined
     if (typeof serviceId !== 'string') return snapshot()
     disabled = new Set(setServiceEnabled(dir, serviceId, !!on))
+    if (!on && unloadService(serviceId).length) push()
     reconcile()
     return snapshot()
   })

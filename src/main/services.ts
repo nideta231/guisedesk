@@ -23,6 +23,12 @@ export function visibleAccounts<T extends { serviceId: string }>(accounts: T[], 
   return accounts.filter((a) => !disabled.includes(a.serviceId))
 }
 
+/** Accounts of a switched-off service: their pages are unloaded, but their partitions (and logins) stay. */
+export function accountsToUnload<T extends { id: string; serviceId: string }>(accounts: T[], disabled: Iterable<string>): string[] {
+  const off = new Set(disabled)
+  return accounts.filter((a) => off.has(a.serviceId)).map((a) => a.id)
+}
+
 /** The sidebar's two groups, Chats then Feeds, each sorted by `order`. One source for the sidebar and the keyboard switch (D33). */
 export function sidebarGroups<T extends { serviceId: string; order: number }>(accounts: T[]): { title: string; rows: T[] }[] {
   const sorted = [...accounts].sort((a, b) => a.order - b.order)
