@@ -1,12 +1,20 @@
 // Favicon for Custom URL accounts: one request to the site, cached under <data dir>/icons. No electron imports.
-import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
+import * as nodeFs from 'node:fs'
 import { join } from 'node:path'
 import { writeAtomic, type Fs } from './atomic'
 
 export type Fetcher = (url: string) => Promise<{ contentType: string; bytes: Uint8Array } | null>
 
+export interface IconReader {
+  readFileSync(path: string): Buffer | string
+  statSync(path: string): { mtimeMs: number }
+}
+
 const EXT: Record<string, string> = { png: 'png', 'svg+xml': 'svg', gif: 'gif', jpeg: 'jpg', webp: 'webp' }
 const MIME: Record<string, string> = { png: 'image/png', svg: 'image/svg+xml', gif: 'image/gif', jpg: 'image/jpeg', webp: 'image/webp', ico: 'image/x-icon' }
+// Decoded data URLs, keyed by full path and checked against the file's mtime: snapshots ask for the same few icons often.
+const iconCache = new Map<string, { mtimeMs: number; url: string }>()
 const extOf = (contentType: string) => EXT[contentType.split(';')[0].trim().replace('image/', '')] ?? 'ico'
 /** A hostname safe for a file name: an IPv6 host comes from URL as [::1], which readIcon would reject. */
 const slugHost = (hostname: string) => hostname.replace(/[^A-Za-z0-9.-]/g, '_')
@@ -25,6 +33,7 @@ export async function cacheFavicon(dir: string, siteUrl: string, fetcher: Fetche
     const rel = `icons/${host}.${extOf(res.contentType)}`
     mkdirSync(join(dir, 'icons'), { recursive: true })
     writeAtomic(join(dir, rel), res.bytes, fs)
+    iconCache.delete(join(dir, rel))
     return rel
   } catch {
     return undefined
@@ -32,11 +41,17 @@ export async function cacheFavicon(dir: string, siteUrl: string, fetcher: Fetche
 }
 
 /** Data URL for a cached icon (the renderer cannot read the data dir). Only icons/<file> paths are read. */
-export function readIcon(dir: string, rel?: string): string | undefined {
+export function readIcon(dir: string, rel?: string, fs: IconReader = nodeFs): string | undefined {
   const m = rel && /^icons\/[\w.-]+\.(\w+)$/.exec(rel)
-  if (!m || rel.includes('..')) return undefined
+  if (!m || rel!.includes('..')) return undefined
+  const full = join(dir, rel!)
   try {
-    return `data:${MIME[m[1]] ?? 'image/x-icon'};base64,${readFileSync(join(dir, rel)).toString('base64')}`
+    const st = fs.statSync(full)
+    const hit = iconCache.get(full)
+    if (hit && hit.mtimeMs === st.mtimeMs) return hit.url
+    const url = `data:${MIME[m[1]] ?? 'image/x-icon'};base64,${fs.readFileSync(full).toString('base64')}`
+    iconCache.set(full, { mtimeMs: st.mtimeMs, url })
+    return url
   } catch {
     return undefined
   }

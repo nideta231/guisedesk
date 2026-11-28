@@ -1,5 +1,5 @@
 import * as nodeFs from 'node:fs'
-import { mkdtempSync, existsSync, readFileSync } from 'node:fs'
+import { mkdtempSync, existsSync, readFileSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -43,6 +43,29 @@ describe('favicon cache', () => {
     expect(failed).toBeUndefined()
     expect(existsSync(join(dir, 'icons/b.example.com.svg'))).toBe(false)
     expect(readIcon(dir, first)).toBe(`data:image/png;base64,${Buffer.from(png).toString('base64')}`)
+  })
+
+  it('memoizes a decoded data URL by path and mtime', async () => {
+    const dir = tmp()
+    const icon = await cacheFavicon(dir, 'https://a.example.com/', async () => ({ contentType: 'image/png', bytes: png }))
+    const other = await cacheFavicon(dir, 'https://b.example.com/', async () => ({ contentType: 'image/png', bytes: png }))
+    let reads = 0
+    const reader = {
+      statSync: (p: string) => nodeFs.statSync(p),
+      readFileSync: (p: string) => {
+        reads++
+        return nodeFs.readFileSync(p)
+      }
+    }
+    const first = readIcon(dir, icon, reader)
+    expect(readIcon(dir, icon, reader)).toBe(first)
+    expect(reads).toBe(1)
+    const later = new Date(Date.now() + 5000)
+    utimesSync(join(dir, icon!), later, later)
+    readIcon(dir, icon, reader)
+    expect(reads).toBe(2)
+    readIcon(dir, other, reader)
+    expect(reads).toBe(3)
   })
 
   it('falls back to no icon when the fetch fails or returns a non-image', async () => {
