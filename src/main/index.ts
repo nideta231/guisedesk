@@ -43,7 +43,7 @@ import { checkForUpdate, realRun, type UpdateInfo } from './updater'
 import { version } from '../../package.json'
 import { buildContextMenu, rowMenuItems } from './contextmenu'
 import { doneNotice, downloadOutcome, loadDownloads, pickFolder, saveDownloads, uniquePath } from './downloads'
-import { isHelpShortcut, isSwitcherShortcut, nextZoom, switchTarget, zoomKey, type KeyInput } from './shortcuts'
+import { isHelpShortcut, isSettingsShortcut, isSwitcherShortcut, nextZoom, switchTarget, zoomKey, type KeyInput } from './shortcuts'
 import { accountsToUnload, sidebarOrder } from './services'
 import { PARTS, partsOn, type Part } from '../preload/blur'
 import { closePartitionPopups, onPartition, partitionKey, partitionOf } from './sharing'
@@ -162,6 +162,8 @@ let switchKeyDown: (i: KeyInput) => boolean = () => false
 let openSwitcher: () => void = () => {}
 // F1 (D60): ask the renderer to show the shortcut cheat sheet.
 let openHelp: () => void = () => {}
+// Ctrl+, (UX-036): ask the renderer for Settings from a service view or popup, raising the main window first.
+let openSettingsShortcut: () => void = () => {}
 const live = new Set<Notification>() // keep references so click handlers survive GC
 // Notifications inbox (D64): kept in memory and inbox.json; muted items stay but are not counted.
 let inbox: InboxItem[] = []
@@ -340,6 +342,12 @@ function openPopup(a: Account, url: string): void {
       openHelp()
       return
     }
+    // Ctrl+, (UX-036) opens Settings in the app window.
+    if (isSettingsShortcut(input) && isUnlocked()) {
+      e.preventDefault()
+      openSettingsShortcut()
+      return
+    }
     // Ctrl+L locks from a popup too; locking closes every popup (D37).
     if (isLockShortcut(input)) {
       e.preventDefault()
@@ -402,6 +410,12 @@ function hookLinks(v: WebContentsView, a: Account): void {
     if (isHelpShortcut(input) && isUnlocked()) {
       e.preventDefault()
       openHelp()
+      return
+    }
+    // Ctrl+, (UX-036): Settings in the app window, over the detached view.
+    if (isSettingsShortcut(input) && isUnlocked()) {
+      e.preventDefault()
+      openSettingsShortcut()
       return
     }
     if (zoomKeyDown(input) || switchKeyDown(input)) {
@@ -989,6 +1003,7 @@ function createWindow(): BrowserWindow {
     showWindow()
     if (isUnlocked()) win.webContents.send('settings:open')
   }
+  openSettingsShortcut = openSettings
   // Bulk recovery from the tray (UX-033): reload every enabled account (waking sleepers in the background), or sleep
   // every awake account except the selected one so the window keeps a page. One event each, no new timer.
   function reloadAllAccounts(): void {
@@ -1574,6 +1589,12 @@ function createWindow(): BrowserWindow {
     if (isHelpShortcut(input) && isUnlocked()) {
       e.preventDefault()
       openHelp()
+      return
+    }
+    // Ctrl+, (UX-036): Settings, the usual preferences key.
+    if (isSettingsShortcut(input) && isUnlocked()) {
+      e.preventDefault()
+      openSettings()
       return
     }
     if (zoomKeyDown(input) || switchKeyDown(input)) {

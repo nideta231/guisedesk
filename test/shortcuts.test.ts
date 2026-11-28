@@ -1,5 +1,8 @@
+// @vitest-environment jsdom
+import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
-import { nextZoom, switchTarget, zoomKey, zoomPercent } from '../src/main/shortcuts'
+import { isSettingsShortcut, nextZoom, SHORTCUTS, switchTarget, zoomKey, zoomPercent } from '../src/main/shortcuts'
+import ShortcutHelp from '../src/renderer/src/ShortcutHelp.vue'
 import { sidebarOrder } from '../src/main/services'
 
 const k = (key: string, over: Record<string, unknown> = {}) => ({ type: 'keyDown', key, control: true, shift: false, alt: false, meta: false, ...over })
@@ -79,5 +82,22 @@ describe('sidebarOrder', () => {
     const mk = (id: string, serviceId: string, order: number) => ({ id, serviceId, order })
     const list = [mk('ig', 'instagram', 0), mk('wa2', 'whatsapp', 3), mk('dc', 'discord', 2), mk('wa1', 'whatsapp', 1)]
     expect(sidebarOrder(list).map((a) => a.id)).toEqual(['wa1', 'dc', 'wa2', 'ig'])
+  })
+})
+
+describe('isSettingsShortcut (UX-036)', () => {
+  it('is true only for a Ctrl+, keyDown; a plain comma, key-up, Alt or Meta do not count', () => {
+    expect(isSettingsShortcut(k(','))).toBe(true)
+    expect(isSettingsShortcut(k(',', { control: false }))).toBe(false)
+    expect(isSettingsShortcut(k(',', { type: 'keyUp' }))).toBe(false)
+    expect(isSettingsShortcut(k(',', { alt: true }))).toBe(false)
+    expect(isSettingsShortcut(k(',', { meta: true }))).toBe(false)
+    expect(isSettingsShortcut(k('.'))).toBe(false)
+  })
+
+  it('the cheat sheet lists and renders the Ctrl+, Settings row', () => {
+    expect(SHORTCUTS.find((s) => s.keys === 'Ctrl+,')).toMatchObject({ group: 'Window', title: 'Settings' })
+    const w = mount(ShortcutHelp)
+    expect(w.findAll('.hrow').some((r) => r.text().includes('Ctrl+,') && r.text().includes('Settings'))).toBe(true)
   })
 })

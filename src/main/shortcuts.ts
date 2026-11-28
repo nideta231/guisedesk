@@ -20,6 +20,10 @@ export const isSwitcherShortcut = (i: { type: string; control?: boolean; alt?: b
 /** F1 (D60): the shortcut cheat sheet, from anywhere in the app. */
 export const isHelpShortcut = (i: { type: string; key: string }): boolean => i.type === 'keyDown' && i.key === 'F1'
 
+/** Ctrl+, (UX-036): Settings, the same key most desktop apps use for preferences. */
+export const isSettingsShortcut = (i: { type: string; control?: boolean; alt?: boolean; meta?: boolean; shift?: boolean; key: string }): boolean =>
+  i.type === 'keyDown' && !!i.control && !i.alt && !i.meta && !i.shift && i.key === ','
+
 export interface ShortcutInfo {
   group: string
   keys: string
@@ -34,6 +38,7 @@ export const SHORTCUTS: ShortcutInfo[] = [
   { group: 'Window', keys: 'Ctrl+B', title: 'Show or collapse the sidebar' },
   { group: 'Window', keys: 'Ctrl+= / Ctrl+-', title: 'Zoom in / out' },
   { group: 'Window', keys: 'Ctrl+0', title: 'Reset zoom' },
+  { group: 'Window', keys: 'Ctrl+,', title: 'Settings' },
   { group: 'Window', keys: 'Esc', title: 'Close a dialog or Settings' },
   { group: 'Window', keys: 'F1', title: 'Keyboard shortcuts' },
   { group: 'Window', keys: '?', title: 'Keyboard shortcuts (app window, not in a field)' },
