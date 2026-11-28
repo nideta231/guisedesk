@@ -277,9 +277,9 @@ export async function startKeeper(d: KeeperDeps): Promise<{ stop: () => void } |
       if (!revokedCount || pending) return
       pending = setTimeout(() => { pending = null; renderAll() }, 50)
     })
-    // WhatsApp mutates the chat constantly; only new rows there can need a deleted-message block.
-    const chat = d.doc.querySelector('#main') ?? d.doc.documentElement
-    if (obs) obs.observe(chat, { childList: true, subtree: true })
+    // WhatsApp re-creates #main whenever the user opens another chat, so observe the stable document root and
+    // let the revoked check (and the cheap early return above) skip the constant background mutations.
+    if (obs) obs.observe(d.doc.documentElement, { childList: true, subtree: true })
     renderAll()
     const timer = setInterval(() => void cleanup().catch(() => {}), 3_600_000)
     d.onState('ok')

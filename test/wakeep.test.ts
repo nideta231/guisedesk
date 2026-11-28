@@ -188,6 +188,17 @@ describe('startKeeper', () => {
     expect(qsa).toHaveBeenCalled()
   })
 
+  it('keeps watching after WhatsApp re-creates #main', async () => {
+    document.body.innerHTML = '<div id="main"></div>'
+    const entry: Entry = { id: 'false_111@c.us_3EB01', chat: 'c', from: 'f', t: NOW - DAY, type: 'chat', text: 'hello there', caption: '', revoked: NOW - DAY }
+    const k = await start(new FakeColl(), memStore([entry]))
+    expect(document.querySelector('.gd-deleted')).toBeNull()
+    document.body.innerHTML = `<div id="main"><div data-id="${entry.id}"><span>x</span></div></div>`
+    await settle()
+    expect(document.querySelector('.gd-deleted')?.textContent).toContain('hello there')
+    k?.stop()
+  })
+
   it('indexes rows once for 50 deleted messages and still matches a prefixed data-id', async () => {
     const entries: Entry[] = []
     const html = ['<div id="main">']
