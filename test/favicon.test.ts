@@ -1,3 +1,4 @@
+import * as nodeFs from 'node:fs'
 import { mkdtempSync, existsSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -19,6 +20,22 @@ describe('favicon cache', () => {
     expect(await cacheFavicon(dir, 'https://wiki.example.com/other', fetcher)).toBe(icon)
     expect(urls).toHaveLength(1)
     expect(readIcon(dir, icon)).toBe(`data:image/png;base64,${Buffer.from(png).toString('base64')}`)
+  })
+
+  it('writes the icon atomically: a failed rename leaves no new icon and the previous one intact', async () => {
+    const dir = tmp()
+    const first = await cacheFavicon(dir, 'https://a.example.com/', async () => ({ contentType: 'image/png', bytes: png }))
+    expect(first).toBe('icons/a.example.com.png')
+    const fs = {
+      ...nodeFs,
+      renameSync: () => {
+        throw new Error('disk full')
+      }
+    }
+    const failed = await cacheFavicon(dir, 'https://b.example.com/', async () => ({ contentType: 'image/svg+xml', bytes: new Uint8Array([1, 2, 3]) }), fs)
+    expect(failed).toBeUndefined()
+    expect(existsSync(join(dir, 'icons/b.example.com.svg'))).toBe(false)
+    expect(readIcon(dir, first)).toBe(`data:image/png;base64,${Buffer.from(png).toString('base64')}`)
   })
 
   it('falls back to no icon when the fetch fails or returns a non-image', async () => {

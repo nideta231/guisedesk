@@ -1,6 +1,7 @@
 // Favicon for Custom URL accounts: one request to the site, cached under <data dir>/icons. No electron imports.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { writeAtomic, type Fs } from './atomic'
 
 export type Fetcher = (url: string) => Promise<{ contentType: string; bytes: Uint8Array } | null>
 
@@ -9,7 +10,7 @@ const MIME: Record<string, string> = { png: 'image/png', svg: 'image/svg+xml', g
 const extOf = (contentType: string) => EXT[contentType.split(';')[0].trim().replace('image/', '')] ?? 'ico'
 
 /** Returns the icon path relative to the data dir (icons/<host>.<ext>), or undefined to fall back to initials. */
-export async function cacheFavicon(dir: string, siteUrl: string, fetcher: Fetcher): Promise<string | undefined> {
+export async function cacheFavicon(dir: string, siteUrl: string, fetcher: Fetcher, fs?: Fs): Promise<string | undefined> {
   const { hostname, origin } = new URL(siteUrl)
   for (const ext of Object.keys(MIME)) {
     const rel = `icons/${hostname}.${ext}`
@@ -20,7 +21,7 @@ export async function cacheFavicon(dir: string, siteUrl: string, fetcher: Fetche
     if (!res || res.bytes.length === 0 || !res.contentType.startsWith('image/')) return undefined
     const rel = `icons/${hostname}.${extOf(res.contentType)}`
     mkdirSync(join(dir, 'icons'), { recursive: true })
-    writeFileSync(join(dir, rel), res.bytes)
+    writeAtomic(join(dir, rel), res.bytes, fs)
     return rel
   } catch {
     return undefined
