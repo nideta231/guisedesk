@@ -18,6 +18,18 @@ function fakeIpc() {
 
 const sender = (id: number) => ({ sender: { id } })
 
+describe('appOnly', () => {
+  it('passes the app window id and refuses another sender without calling fn', () => {
+    const fn = vi.fn((id: string) => `ran ${id}`)
+    const only = appOnly((e: { sender: { id: number } }) => e.sender.id === 1, fn)
+
+    expect(only(sender(1), 'a1')).toBe('ran a1')
+    expect(fn).toHaveBeenCalledWith('a1')
+    expect(only(sender(2), 'a1')).toBeUndefined()
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('accounts:select guard', () => {
   it('does not run while locked, and ignores a non-app sender once unlocked', () => {
     const { ipc, listeners } = fakeIpc()

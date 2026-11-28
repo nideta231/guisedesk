@@ -1509,14 +1509,16 @@ function createWindow(): BrowserWindow {
     saveSelected(dir, next.id)
     show(win, next, pushSleep)
   }
-  gipc.handle('services:set', (_e: unknown, serviceId: string, on: boolean) => {
+  gipc.handle('services:set', (e: { sender: { id: number } }, serviceId: string, on: boolean) => {
+    if (!fromApp(e)) return undefined
     if (typeof serviceId !== 'string') return snapshot()
     disabled = new Set(setServiceEnabled(dir, serviceId, !!on))
     reconcile()
     return snapshot()
   })
   // Drag reorder (D28): a bad id list is ignored and the current snapshot returned.
-  gipc.handle('accounts:reorder', (_e: unknown, ids: unknown) => {
+  gipc.handle('accounts:reorder', (e: { sender: { id: number } }, ids: unknown) => {
+    if (!fromApp(e)) return undefined
     if (!Array.isArray(ids) || !ids.every((x) => typeof x === 'string')) return snapshot()
     try {
       accounts = orderedAccounts(reorderAccounts(dir, ids))
@@ -1526,7 +1528,8 @@ function createWindow(): BrowserWindow {
     push()
     return snapshot()
   })
-  gipc.handle('accounts:policy', (_e: unknown, id: string, policy: string) => {
+  gipc.handle('accounts:policy', (e: { sender: { id: number } }, id: string, policy: string) => {
+    if (!fromApp(e)) return undefined
     if (!accounts.some((a) => a.id === id) || !IDLE_POLICIES.includes(policy)) return snapshot()
     accounts = orderedAccounts(setIdlePolicy(dir, id, policy))
     const held = owner.get(views.get(id)?.webContents.id ?? -1)
@@ -1538,7 +1541,8 @@ function createWindow(): BrowserWindow {
     await ses.clearStorageData().catch(() => {})
     await ses.clearCache().catch(() => {})
   }
-  gipc.handle('accounts:logout', async (_e: unknown, id: string) => {
+  gipc.handle('accounts:logout', async (e: { sender: { id: number } }, id: string) => {
+    if (!fromApp(e)) return undefined
     const a = accounts.find((x) => x.id === id)
     if (!a) return snapshot()
     // A shared login logs out every account on it, so their popups go too.
@@ -1559,7 +1563,8 @@ function createWindow(): BrowserWindow {
     }
     return snapshot()
   })
-  gipc.handle('accounts:remove', async (_e: unknown, id: string) => {
+  gipc.handle('accounts:remove', async (e: { sender: { id: number } }, id: string) => {
+    if (!fromApp(e)) return undefined
     const target = accounts.find((a) => a.id === id)
     if (!target) return snapshot()
     if (id === splitB) endSplit()
@@ -1601,7 +1606,8 @@ function createWindow(): BrowserWindow {
     pushSleep()
     return snapshot()
   })
-  gipc.handle('accounts:zoom-reset', (_e: unknown, id: string) => {
+  gipc.handle('accounts:zoom-reset', (e: { sender: { id: number } }, id: string) => {
+    if (!fromApp(e)) return undefined
     if (accounts.some((a) => a.id === id)) changeZoom(id, 0)
     return snapshot()
   })
@@ -1638,7 +1644,8 @@ function createWindow(): BrowserWindow {
       return { error: String((err as Error)?.message ?? err) }
     }
   }
-  gipc.handle('accounts:proxy', async (_e: unknown, id: unknown, raw: unknown) => {
+  gipc.handle('accounts:proxy', async (e: { sender: { id: number } }, id: unknown, raw: unknown) => {
+    if (!fromApp(e)) return undefined
     if (typeof id !== 'string' || typeof raw !== 'string') return snapshot()
     const a = accounts.find((x) => x.id === id)
     if (!a) return snapshot()
@@ -1811,7 +1818,8 @@ function createWindow(): BrowserWindow {
     saveSplit(dir, { a: attachedId, b: splitB, ratio: splitRatio })
     onSplitChange()
   })
-  gipc.handle('accounts:mute', (_e: unknown, id: string, muted: boolean) => {
+  gipc.handle('accounts:mute', (e: { sender: { id: number } }, id: string, muted: boolean) => {
+    if (!fromApp(e)) return undefined
     if (!accounts.some((a) => a.id === id)) return snapshot()
     accounts = orderedAccounts(setMuted(dir, id, !!muted))
     // The notification path reads the Account captured when the view was built: keep it current.
@@ -1821,7 +1829,8 @@ function createWindow(): BrowserWindow {
     onInbox()
     return snapshot()
   })
-  gipc.handle('accounts:blur', (_e: unknown, id: string, on: boolean) => {
+  gipc.handle('accounts:blur', (e: { sender: { id: number } }, id: string, on: boolean) => {
+    if (!fromApp(e)) return undefined
     if (!accounts.some((a) => a.id === id)) return snapshot()
     accounts = orderedAccounts(setBlurMedia(dir, id, !!on))
     const v = views.get(id)
@@ -1830,7 +1839,8 @@ function createWindow(): BrowserWindow {
     if (v && !v.webContents.isDestroyed()) v.webContents.send('blur:set', blurState(held ?? accounts.find((a) => a.id === id)))
     return snapshot()
   })
-  gipc.handle('accounts:blurpart', (_e: unknown, id: string, part: string, on: boolean) => {
+  gipc.handle('accounts:blurpart', (e: { sender: { id: number } }, id: string, part: string, on: boolean) => {
+    if (!fromApp(e)) return undefined
     if (!accounts.some((a) => a.id === id) || !(PARTS as readonly string[]).includes(part)) return snapshot()
     accounts = orderedAccounts(setBlurPart(dir, id, part as Part, !!on))
     const v = views.get(id)
@@ -1895,7 +1905,8 @@ function createWindow(): BrowserWindow {
       v.webContents.reload()
     }
   }
-  gipc.handle('accounts:extension', async (_e: unknown, id: string, extId: string, on: boolean) => {
+  gipc.handle('accounts:extension', async (e: { sender: { id: number } }, id: string, extId: string, on: boolean) => {
+    if (!fromApp(e)) return undefined
     if (typeof extId === 'string') await setAccountExtension(id, extId, !!on)
     return snapshot()
   })
@@ -1916,7 +1927,8 @@ function createWindow(): BrowserWindow {
     items.push({ label: 'Add or manage extensions...', click: () => win.webContents.send('settings:open-tab', 'Extensions') })
     Menu.buildFromTemplate(items).popup({ window: win })
   })
-  gipc.handle('accounts:keepdeleted', (_e: unknown, id: string, on: boolean) => {
+  gipc.handle('accounts:keepdeleted', (e: { sender: { id: number } }, id: string, on: boolean) => {
+    if (!fromApp(e)) return undefined
     if (!accounts.some((a) => a.id === id)) return snapshot()
     accounts = orderedAccounts(setKeepDeleted(dir, id, !!on))
     const v = views.get(id)
@@ -1927,7 +1939,8 @@ function createWindow(): BrowserWindow {
     if (v && !v.webContents.isDestroyed()) v.webContents.reload()
     return snapshot()
   })
-  gipc.handle('accounts:add', async (_e: unknown, input: any) => {
+  gipc.handle('accounts:add', async (e: { sender: { id: number } }, input: any) => {
+    if (!fromApp(e)) return undefined
     const v = validateNewAccount(input)
     if (!v.ok) return { error: v.error }
     const icon = v.value.custom ? await cacheFavicon(dir, v.value.custom.url, fetchSite) : undefined
