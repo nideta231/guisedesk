@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { nextTick, onMounted, ref, watch } from 'vue'
 import SettingsExtensions from './SettingsExtensions.vue'
 import SettingsGeneral from './SettingsGeneral.vue'
 import SettingsLock from './SettingsLock.vue'
@@ -14,12 +14,33 @@ const TABS = ['Services', 'Lock', 'Notifications', 'Extensions', 'General']
 const first = new URLSearchParams(location.search).get('tab') ?? ''
 const tab = ref(TABS.includes(props.tab ?? '') ? props.tab! : TABS.includes(first) ? first : 'Services')
 watch(() => props.tab, (t) => t && TABS.includes(t) && (tab.value = t))
+
+// Keyboard tabs (UX-005): each tab is a real button with the ARIA tab pattern.
+const tabEls = ref<HTMLButtonElement[]>([])
+function focusTab() {
+  void nextTick(() => tabEls.value[TABS.indexOf(tab.value)]?.focus())
+}
+onMounted(focusTab)
+watch(tab, focusTab)
+function onTabKey(e: KeyboardEvent) {
+  const i = TABS.indexOf(tab.value)
+  let next = i
+  if (e.key === 'ArrowRight') next = (i + 1) % TABS.length
+  else if (e.key === 'ArrowLeft') next = (i - 1 + TABS.length) % TABS.length
+  else if (e.key === 'Home') next = 0
+  else if (e.key === 'End') next = TABS.length - 1
+  else return
+  e.preventDefault()
+  tab.value = TABS[next]
+}
 </script>
 
 <template>
   <section class="settings">
     <div class="top"><button class="ib" title="Back" aria-label="Back" @click="emit('back')"><svg class="i" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" /></svg></button><div class="title">Settings</div><button class="ib x close" title="Close (Esc)" aria-label="Close" @click="emit('back')"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>
-    <div class="tabs"><span v-for="t in TABS" :key="t" :class="{ sel: t === tab }" @click="tab = t">{{ t }}</span></div>
+    <div class="tabs" role="tablist" @keydown="onTabKey">
+      <button v-for="t in TABS" :key="t" ref="tabEls" type="button" role="tab" :aria-selected="t === tab" :tabindex="t === tab ? 0 : -1" :class="{ sel: t === tab }" @click="tab = t">{{ t }}</button>
+    </div>
     <SettingsServices v-if="tab === 'Services'" :accounts="accounts" :disabled="disabled" @toggle="(s, on) => emit('toggle', s, on)" @open="(id) => emit('open', id)" />
     <SettingsLock v-else-if="tab === 'Lock'" @reset="emit('reset')" />
     <SettingsNotifications v-else-if="tab === 'Notifications'" :accounts="accounts" @unmute="(id) => emit('unmute', id)" />

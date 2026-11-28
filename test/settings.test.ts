@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AccountSheet from '../src/renderer/src/AccountSheet.vue'
 import App from '../src/renderer/src/App.vue'
+import Settings from '../src/renderer/src/Settings.vue'
 import SettingsServices from '../src/renderer/src/SettingsServices.vue'
 import { editAccount, loadAccounts, saveAccounts } from '../src/main/accounts'
 
@@ -143,7 +144,7 @@ describe('Settings in the app', () => {
   it('the gear and the tray open Settings in the main area, detach the view, and Back restores it', async () => {
     const w = await open()
     expect(w.find('.tabs .sel').text()).toBe('Services')
-    expect(w.findAll('.tabs span').map((s) => s.text())).toEqual(['Services', 'Lock', 'Notifications', 'Extensions', 'General'])
+    expect(w.findAll('.tabs button').map((s) => s.text())).toEqual(['Services', 'Lock', 'Notifications', 'Extensions', 'General'])
     expect(w.find('aside.side').exists()).toBe(true)
     expect(bridge.dialog).toHaveBeenLastCalledWith(true)
     await w.find('.top .ib').trigger('click')
@@ -271,5 +272,44 @@ describe('account rename and colour (UX-016)', () => {
     expect(editAccount(dir, 'a1', '  New  ', '#ABCDEF').changed).toBe(true)
     expect(loadAccounts(dir)[0]).toMatchObject({ label: 'New', colour: '#abcdef' })
     rmSync(dir, { recursive: true, force: true })
+  })
+})
+
+describe('Settings tabs from the keyboard (UX-005)', () => {
+  const stubs = { SettingsServices: true, SettingsLock: true, SettingsNotifications: true, SettingsExtensions: true, SettingsGeneral: true }
+  const open = () => mount(Settings, { props: { accounts, disabled: [] }, global: { stubs } })
+  const tabs = (w: ReturnType<typeof mount>) => w.findAll('[role="tab"]')
+  const selected = (w: ReturnType<typeof mount>) => tabs(w).findIndex((t) => t.attributes('aria-selected') === 'true')
+
+  it('exposes role=tab with aria-selected inside a tablist', () => {
+    const w = open()
+    expect(w.find('[role="tablist"]').exists()).toBe(true)
+    expect(tabs(w).map((t) => t.text())).toEqual(['Services', 'Lock', 'Notifications', 'Extensions', 'General'])
+    expect(selected(w)).toBe(0)
+    expect(tabs(w)[0].attributes('tabindex')).toBe('0')
+    expect(tabs(w)[1].attributes('tabindex')).toBe('-1')
+  })
+
+  it('ArrowRight moves Services to Lock and mounts that panel, Home returns to Services', async () => {
+    const w = open()
+    await tabs(w)[0].trigger('keydown', { key: 'ArrowRight' })
+    expect(selected(w)).toBe(1)
+    expect(w.findComponent({ name: 'SettingsLock' }).exists()).toBe(true)
+    expect(w.findComponent({ name: 'SettingsServices' }).exists()).toBe(false)
+    await tabs(w)[1].trigger('keydown', { key: 'Home' })
+    expect(selected(w)).toBe(0)
+    expect(w.findComponent({ name: 'SettingsServices' }).exists()).toBe(true)
+  })
+
+  it('End goes to General, ArrowLeft wraps to the last tab, and clicking still selects', async () => {
+    const w = open()
+    await tabs(w)[0].trigger('keydown', { key: 'End' })
+    expect(selected(w)).toBe(4)
+    expect(w.findComponent({ name: 'SettingsGeneral' }).exists()).toBe(true)
+    await tabs(w)[4].trigger('keydown', { key: 'ArrowRight' })
+    expect(selected(w)).toBe(0)
+    await tabs(w).find((t) => t.text() === 'Extensions')!.trigger('click')
+    expect(selected(w)).toBe(3)
+    expect(w.findComponent({ name: 'SettingsExtensions' }).exists()).toBe(true)
   })
 })

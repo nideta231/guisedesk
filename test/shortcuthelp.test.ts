@@ -125,7 +125,7 @@ describe('App shortcut cheat sheet', () => {
     const { w } = await app()
     await w.find('.brand .gear').trigger('click')
     await flushPromises()
-    await w.findAll('.tabs span').find((s) => s.text() === 'General')!.trigger('click')
+    await w.findAll('.tabs button').find((s) => s.text() === 'General')!.trigger('click')
     await flushPromises()
     const row = w.findAll('.sr').find((r) => r.find('b').text() === 'Keyboard shortcuts')!
     await row.find('.lnk').trigger('click')

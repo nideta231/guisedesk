@@ -202,7 +202,7 @@ describe('Settings tabs in the app', () => {
     const w = mount(App)
     await flushPromises()
     await w.find('.brand .gear').trigger('click')
-    await w.findAll('.tabs span')[1].trigger('click')
+    await w.findAll('.tabs button')[1].trigger('click')
     expect(w.find('.settings h4').text()).toBe('Unlock')
     await btn(w, 'Reset').trigger('click')
     expect(w.find('.lockv.reset').exists()).toBe(true)
