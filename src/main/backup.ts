@@ -317,7 +317,8 @@ export function applyPendingRestore(dataDir: string): BackupManifest | null {
     for (const e of files) {
       const dest = join(dataDir, ...e.path.split('/'))
       if (e.path.includes('/')) mkdirSync(dirname(dest), { recursive: true })
-      writeAtomic(dest, e.data, undefined, e.path === 'lock.json' ? 0o600 : undefined)
+      // lock.json and settings.json (proxy passwords) are private; the rest keep the usual mode.
+      writeAtomic(dest, e.data, undefined, e.path === 'lock.json' || e.path === 'settings.json' ? 0o600 : undefined)
     }
     rmSync(marker, { force: true })
     rmSync(archivePath, { force: true })

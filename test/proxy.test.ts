@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
-import { loadAccounts, loadProxyAuth, saveProxyAuth, setAccountProxy } from '../src/main/accounts'
+import { loadAccounts, loadProxyAuth, saveDnd, saveProxyAuth, setAccountProxy } from '../src/main/accounts'
 import { effectiveProxy, findProxyCredential, parseProxy, proxyLabel, proxyMenu, proxyRules, sameProxy } from '../src/main/proxy'
 import AccountSheet from '../src/renderer/src/AccountSheet.vue'
 import TopBar from '../src/renderer/src/TopBar.vue'
@@ -103,6 +103,15 @@ describe('proxy storage (D63)', () => {
     expect('proxyAuth' in JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8'))).toBe(false)
     writeFileSync(join(dir, 'settings.json'), JSON.stringify({ proxyAuth: { wa1: { username: 5 } } }))
     expect(loadProxyAuth(dir)).toEqual({})
+  })
+
+  it('keeps settings.json private before and after later settings writes', () => {
+    const dir = tmp()
+    saveProxyAuth(dir, 'wa1', { username: 'ann', password: 'secret' })
+    expect(statSync(join(dir, 'settings.json')).mode & 0o777).toBe(0o600)
+    saveDnd(dir, true)
+    expect(statSync(join(dir, 'settings.json')).mode & 0o777).toBe(0o600)
+    expect(loadProxyAuth(dir)).toEqual({ wa1: { username: 'ann', password: 'secret' } })
   })
 })
 

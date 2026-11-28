@@ -25,7 +25,7 @@ export function loadDownloads(dir: string): DownloadSettings {
 
 export function saveDownloads(dir: string, value: DownloadSettings): void {
   const downloads: DownloadSettings = value.dir ? { dir: value.dir, ask: value.ask } : { ask: value.ask }
-  writeAtomic(join(dir, 'settings.json'), JSON.stringify({ ...readAll(dir), downloads }, null, 2))
+  writeAtomic(join(dir, 'settings.json'), JSON.stringify({ ...readAll(dir), downloads }, null, 2), undefined, 0o600)
 }
 
 /** Safe file name: no folders, no leading dots; "download" when nothing is left. */

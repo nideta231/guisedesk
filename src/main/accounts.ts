@@ -82,13 +82,7 @@ export function loadSelected(dir: string): string | undefined {
 }
 
 export function saveSelected(dir: string, id: string): void {
-  let settings: Record<string, unknown> = {}
-  try {
-    settings = JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8'))
-  } catch {
-    /* first write */
-  }
-  writeAtomic(join(dir, 'settings.json'), JSON.stringify({ ...settings, selectedAccount: id }, null, 2))
+  updateSettings(dir, { selectedAccount: id })
 }
 
 /** Sets one account's muted flag (D19) and returns the saved list. */
@@ -172,13 +166,7 @@ export function loadDnd(dir: string): boolean {
 }
 
 export function saveDnd(dir: string, dnd: boolean): void {
-  let settings: Record<string, unknown> = {}
-  try {
-    settings = JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8'))
-  } catch {
-    /* first write */
-  }
-  writeAtomic(join(dir, 'settings.json'), JSON.stringify({ ...settings, dnd }, null, 2))
+  updateSettings(dir, { dnd })
 }
 
 /** Quiet outside work hours (D58) lives in settings.json key quietWorkHours; off when missing. */
@@ -218,13 +206,7 @@ export function saveSidebarLayout(dir: string, v: { width: number; hidden: boole
 }
 
 export function saveSidebarCollapsed(dir: string, sidebarCollapsed: boolean): void {
-  let settings: Record<string, unknown> = {}
-  try {
-    settings = JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8'))
-  } catch {
-    /* first write */
-  }
-  writeAtomic(join(dir, 'settings.json'), JSON.stringify({ ...settings, sidebarCollapsed }, null, 2))
+  updateSettings(dir, { sidebarCollapsed })
 }
 
 /** Split view (D62) in settings.json key split: the two account ids and the divider ratio. */
@@ -284,7 +266,8 @@ function updateSettings(dir: string, patch: Record<string, unknown>): void {
   } catch {
     /* first write */
   }
-  writeAtomic(join(dir, 'settings.json'), JSON.stringify({ ...settings, ...patch }, null, 2))
+  // settings.json holds proxy passwords, so every write keeps it readable by the user only (D63).
+  writeAtomic(join(dir, 'settings.json'), JSON.stringify({ ...settings, ...patch }, null, 2), undefined, 0o600)
 }
 
 /** Services switched off in Settings (D6), in settings.json key disabledServices. Accounts and sessions stay. */

@@ -40,7 +40,7 @@ export function loadBlocking(dir: string): BlockingSettings {
 
 export function saveBlocking(dir: string, value: BlockingSettings): void {
   const blocking: BlockingSettings = { ads: value.ads === true, popups: value.popups === true }
-  writeAtomic(join(dir, 'settings.json'), JSON.stringify({ ...readAll(dir), blocking }, null, 2))
+  writeAtomic(join(dir, 'settings.json'), JSON.stringify({ ...readAll(dir), blocking }, null, 2), undefined, 0o600)
 }
 
 /** Input types that count as the user asking for a new window. */
