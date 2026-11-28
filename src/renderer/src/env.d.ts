@@ -209,6 +209,8 @@ interface Window {
     back(id: string): void
     forward(id: string): void
     onNavState(cb: (s: { id: string; canBack: boolean; canForward: boolean }) => void): Unsubscribe
+    /** The account page started or stopped loading (UX-046); the bar is debounced and cleared at 30 s. */
+    onLoading(cb: (p: { id: string; loading: boolean }) => void): Unsubscribe
     /** Retry card (UX-010): opens the account's start page in the system browser. */
     openSite(id: string): void
     /** A main-frame page load failed, or a later load cleared the retry card. */

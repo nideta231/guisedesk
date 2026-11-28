@@ -59,6 +59,7 @@ import { flushSessions, flushThenClose, sessionKeys } from './sessionlife'
 import { collectLogins, createLoginScheduler } from './logincheck'
 import { onceMainFrameSettled } from './mainframe'
 import { isReportableLoadError, shouldClearErrorOnFinish, shouldClearErrorOnStart, shouldReattachOnLoad } from './pageerror'
+import { LOADING_CEILING_MS, LOADING_DEBOUNCE_MS, loadingAfter } from './loading'
 import { goBack, goForward, navState } from './nav'
 import { openAppTarget } from './appopen'
 import { runQuit } from './appquit'
@@ -808,6 +809,43 @@ function viewFor(a: Account): WebContentsView {
     wc.on('did-navigate', pushNav)
     wc.on('did-navigate-in-page', pushNav)
     wc.on('did-start-navigation', pushNav)
+    // Loading bar (UX-046): debounce a start so SPA route changes do not flicker; stop or a 30 s ceiling clears it.
+    let loading = false
+    let startTimer: ReturnType<typeof setTimeout> | undefined
+    let ceilingTimer: ReturnType<typeof setTimeout> | undefined
+    const setLoading = (next: boolean) => {
+      if (next === loading) return
+      loading = next
+      const w = mainWin
+      if (w && !w.isDestroyed() && !wc.isDestroyed()) w.webContents.send('accounts:loading', { id: a.id, loading })
+    }
+    wc.on('did-start-loading', () => {
+      if (startTimer) clearTimeout(startTimer)
+      if (ceilingTimer) {
+        clearTimeout(ceilingTimer)
+        ceilingTimer = undefined
+      }
+      startTimer = setTimeout(() => {
+        startTimer = undefined
+        if (!loadingAfter(loading, { type: 'start', elapsed: LOADING_DEBOUNCE_MS })) return
+        setLoading(true)
+        ceilingTimer = setTimeout(() => {
+          ceilingTimer = undefined
+          if (loadingAfter(loading, { type: 'ceiling' })) setLoading(false)
+        }, LOADING_CEILING_MS)
+      }, LOADING_DEBOUNCE_MS)
+    })
+    wc.on('did-stop-loading', () => {
+      if (startTimer) {
+        clearTimeout(startTimer)
+        startTimer = undefined
+      }
+      if (ceilingTimer) {
+        clearTimeout(ceilingTimer)
+        ceilingTimer = undefined
+      }
+      if (loadingAfter(loading, { type: 'stop' })) setLoading(false)
+    })
     // WhatsApp keeps its login in IndexedDB, so the cookie check cannot see it (D50). Once the page is up, look for
     // the QR screen versus the chat panel and record whether the login survived.
     if (a.serviceId === 'whatsapp') wc.once('did-finish-load', () => scheduleLoginCheck(2500))

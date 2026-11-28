@@ -66,6 +66,9 @@ const shownPageError = computed(() => (pageError.value && current.value && pageE
 // Page history per account (UX-013): main pushes it after every navigation and when a view is attached.
 const navStates = ref<Record<string, { canBack: boolean; canForward: boolean }>>({})
 const nav = computed(() => (current.value ? navStates.value[current.value.id] : undefined) ?? { canBack: false, canForward: false })
+// Page loading (UX-046): main pushes one id at a time; the bar only shows for the selected account.
+const loadingId = ref<string | undefined>()
+const pageLoading = computed(() => !!current.value && loadingId.value === current.value.id)
 const settingsTab = ref<string | undefined>()
 // An external link that matches several accounts (D40): main asks, we answer once. Main detaches the view while it is open.
 const choosing = ref<LinkChoice | undefined>()
@@ -117,6 +120,7 @@ function wipe() {
   split.value = undefined
   pageError.value = undefined
   navStates.value = {}
+  loadingId.value = undefined
   dnd.value = false
   quiet.value = false
 }
@@ -192,6 +196,10 @@ onMounted(async () => {
   })
   window.guisedesk.onSplit?.((s) => (split.value = s))
   window.guisedesk.onNavState?.((s) => (navStates.value = { ...navStates.value, [s.id]: { canBack: s.canBack, canForward: s.canForward } }))
+  window.guisedesk.onLoading?.((p) => {
+    if (p.loading) loadingId.value = p.id
+    else if (loadingId.value === p.id) loadingId.value = undefined
+  })
   window.guisedesk.onPageError?.((p) => {
     if (p.cleared) {
       if (pageError.value?.id === p.id) pageError.value = undefined
@@ -543,7 +551,7 @@ async function add(input: Parameters<Window['guisedesk']['add']>[0]) {
     </div>
     <Sidebar v-if="!sideHidden" :width="sideWidthPx" @hide="hideSidebar(true)" @resize="resizeSidebar" :accounts="shown" :selected-id="selectedId" :counts="counts" :asleep="asleepIds" :collapsed="collapsed" :update="update.state === 'available'" :inbox-unread="inbox.unread" :disabled="disabled" :dnd="dndOn" @inbox="openInbox" @notifications="openNotificationsSettings" @update="openUpdates" @toggle="toggleSidebar" @select="select" @add="openAdd" @mute="mute" @sleep="sleepNow" @reorder="reorder" @settings="openSettingsAt" @account="openSheet" />
     <main class="main">
-      <TopBar v-if="!settingsOpen && current" :account="current" :asleep="!!sleep[current.id]" :lock="lockChip" :proxy="current.proxy" :split="!!split" :nav="nav" @lock-menu="openLockMenu" @proxy-menu="openProxyMenu(current!.id)" @reload="reload(current!.id)" @home="home(current!.id)" @back="back(current!.id)" @forward="forward(current!.id)" @mute="(m) => mute(current!.id, m)" @lock="lockNow" @sleep="sleepNow(current!.id)" @settings="openSheet(current.id)" @reset-zoom="resetZoom(current!.id)" :ads-on="block.ads" :blocked="block.accounts[current.id]?.blocked ?? 0" :popup="block.accounts[current.id]?.popup" @open-popup="openBlockedPopup(current!.id)" @shield="shieldMenu(current!.id)" @extensions="extensionMenu(current!.id)" @split-menu="openSplitMenu" @close-split="closeSplit" />
+      <TopBar v-if="!settingsOpen && current" :account="current" :asleep="!!sleep[current.id]" :lock="lockChip" :proxy="current.proxy" :split="!!split" :nav="nav" :loading="pageLoading" @lock-menu="openLockMenu" @proxy-menu="openProxyMenu(current!.id)" @reload="reload(current!.id)" @home="home(current!.id)" @back="back(current!.id)" @forward="forward(current!.id)" @mute="(m) => mute(current!.id, m)" @lock="lockNow" @sleep="sleepNow(current!.id)" @settings="openSheet(current.id)" @reset-zoom="resetZoom(current!.id)" :ads-on="block.ads" :blocked="block.accounts[current.id]?.blocked ?? 0" :popup="block.accounts[current.id]?.popup" @open-popup="openBlockedPopup(current!.id)" @shield="shieldMenu(current!.id)" @extensions="extensionMenu(current!.id)" @split-menu="openSplitMenu" @close-split="closeSplit" />
       <Settings v-if="settingsOpen" :accounts="accounts" :disabled="disabled" :update="update" :tab="settingsTab" @check="checkUpdate" @apply="applyUpdate" @back="closeSettings" @toggle="toggleService" @open="(id) => (sheetId = id)" @unmute="(id) => mute(id, false)" @reset="resetting = true" @shortcuts="openHelp" />
       <AsleepPanel v-else-if="sleeping" :account="sleeping" :minutes="sleep[sleeping.id].minutes" @wake="select(sleeping.id)" />
       <div v-else-if="!accounts.length" class="panel empty">

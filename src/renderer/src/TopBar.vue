@@ -21,6 +21,8 @@ const props = defineProps<{
   split?: boolean
   /** Page history (UX-013): Back and Forward are enabled only in that direction. */
   nav?: { canBack: boolean; canForward: boolean }
+  /** Page loading (UX-046): a slim indeterminate bar under the top bar. */
+  loading?: boolean
 }>()
 const emit = defineEmits<{ reload: []; home: []; back: []; forward: []; mute: [muted: boolean]; lock: []; sleep: []; settings: []; 'reset-zoom': []; 'open-popup': []; shield: []; extensions: []; 'lock-menu': []; 'proxy-menu': []; 'split-menu': []; 'close-split': [] }>()
 
@@ -71,6 +73,7 @@ const proxyText = computed(() => {
       <button class="ib" title="Lock now" aria-label="Lock now" @click="emit('lock')"><svg class="i" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg></button>
       <button class="ib" title="Settings" aria-label="Settings" @click="emit('settings')"><svg class="i" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" /></svg></button>
     </div>
+    <div v-if="loading" class="loading" role="progressbar" aria-label="Page loading"><i></i></div>
   </div>
 </template>
 
@@ -91,4 +94,9 @@ const proxyText = computed(() => {
 .extbtn { display: inline-flex; align-items: center; margin-left: 6px; padding: 4px 7px; border: 0; border-radius: 6px; background: var(--raise); color: var(--muted); cursor: pointer; }
 .extbtn:hover { color: var(--text); }
 .extbtn .i { width: 13px; height: 13px; }
+.top { position: relative; }
+.loading { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; overflow: hidden; border-radius: 1px; background: #ffffff10; }
+.loading i { display: block; width: 35%; height: 100%; background: var(--accent); animation: gd-load 1.1s ease-in-out infinite; }
+@keyframes gd-load { 0% { transform: translateX(-100%); } 100% { transform: translateX(290%); } }
+@media (prefers-reduced-motion: reduce) { .loading i { width: 100%; animation: none; opacity: .6; } }
 </style>

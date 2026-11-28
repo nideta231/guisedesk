@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs'
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import App from '../src/renderer/src/App.vue'
+import { loadingAfter } from '../src/main/loading'
 import TopBar from '../src/renderer/src/TopBar.vue'
 import { panelBounds, TOP_BAR_H, TOP_BAR_GAP, PAD_TOP } from '../src/main/layout'
 import { goBack, goForward, navState } from '../src/main/nav'
@@ -121,6 +123,40 @@ describe('App top bar', () => {
     expect((await app({}, 'locked')).w.find('.top .actions').exists()).toBe(false)
     const { w } = await app({ sleep: async () => ({ wa1: { minutes: 30, waking: false } }) })
     expect(w.find('.top .chip').text()).toBe('Asleep')
+  })
+})
+
+describe('TopBar loading bar (UX-046)', () => {
+  it('renders .loading only while loading, with a reduced-motion fallback', () => {
+    expect(mount(TopBar, { props: { account: wa, asleep: false } }).find('.loading').exists()).toBe(false)
+    const w = mount(TopBar, { props: { account: wa, asleep: false, loading: true } })
+    expect(w.find('.loading').exists()).toBe(true)
+    expect(w.find('.loading').attributes('role')).toBe('progressbar')
+    expect(readFileSync('src/renderer/src/TopBar.vue', 'utf8')).toContain('prefers-reduced-motion')
+  })
+
+  it('loadingAfter debounces a start and clears on stop or the ceiling', () => {
+    expect(loadingAfter(false, { type: 'start', elapsed: 100 })).toBe(false)
+    expect(loadingAfter(false, { type: 'start', elapsed: 200 })).toBe(true)
+    expect(loadingAfter(true, { type: 'start' })).toBe(true)
+    expect(loadingAfter(true, { type: 'stop' })).toBe(false)
+    expect(loadingAfter(true, { type: 'ceiling' })).toBe(false)
+  })
+})
+
+describe('App loading bar only for the selected account', () => {
+  it('ignores another account and follows the selected id', async () => {
+    let push: (p: { id: string; loading: boolean }) => void = () => {}
+    const { w } = await app({ onLoading: (cb: (p: { id: string; loading: boolean }) => void) => ((push = cb), () => {}) })
+    push({ id: 'ig1', loading: true })
+    await flushPromises()
+    expect(w.find('.top .loading').exists()).toBe(false)
+    push({ id: 'wa1', loading: true })
+    await flushPromises()
+    expect(w.find('.top .loading').exists()).toBe(true)
+    push({ id: 'wa1', loading: false })
+    await flushPromises()
+    expect(w.find('.top .loading').exists()).toBe(false)
   })
 })
 

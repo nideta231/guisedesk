@@ -170,6 +170,7 @@ if (service) {
   back: (id: string) => ipcRenderer.send('accounts:back', id),
   forward: (id: string) => ipcRenderer.send('accounts:forward', id),
   onNavState: (cb: (s: { id: string; canBack: boolean; canForward: boolean }) => void) => listen('accounts:navstate', cb),
+  onLoading: (cb: (p: { id: string; loading: boolean }) => void) => listen('accounts:loading', cb),
   openSite: (id: string) => ipcRenderer.send('accounts:open-site', id),
   onPageError: (cb: (p: { id: string; code?: number; description?: string; cleared?: boolean }) => void) => listen('page:error', cb),
   sleepNow: (id: string) => ipcRenderer.send('accounts:sleep', id),
