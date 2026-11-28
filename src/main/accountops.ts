@@ -25,12 +25,13 @@ export async function logOut(dir: string, id: string, deps: AccountOpsDeps): Pro
 
 /** Remove: destroys the view, clears storage, deletes the account and its partition dir (only that one, inside dir). */
 export async function removeAccount(dir: string, id: string, deps: AccountOpsDeps): Promise<boolean> {
+  // The id and the key it resolves to become path segments: plain names only, so they can never reach outside Partitions/.
+  if (!/^[A-Za-z0-9_-]+$/.test(id)) throw new Error('refusing an account id that is not a plain name')
   const accounts = loadAccounts(dir)
   const a = accounts.find((x) => x.id === id)
   if (!a) return false
-  // The key becomes a path segment: plain names only, so it can never reach outside Partitions/.
   const key = partitionKey(a)
-  if (!/^[A-Za-z0-9_-]+$/.test(id) || !/^[A-Za-z0-9_-]+$/.test(key)) throw new Error('refusing an account id that is not a plain name')
+  if (!/^[A-Za-z0-9_-]+$/.test(key)) throw new Error('refusing an account id that is not a plain name')
   deps.closeView(id)
   const rest = accounts.filter((x) => x.id !== id)
   // A partition other accounts still use (a shared login, D36) keeps its storage and files.

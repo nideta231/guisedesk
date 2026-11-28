@@ -49,6 +49,22 @@ describe('accounts store', () => {
     expect(loadAccounts(dir)).toEqual(loaded)
   })
 
+  it('drops rows with an unsafe id or an unknown shareWith, keeps valid shared rows', () => {
+    const dir = tmp()
+    writeFileSync(
+      join(dir, 'accounts.json'),
+      JSON.stringify([
+        { id: '../x', serviceId: 'instagram', label: 'Bad', colour: '#000', order: 0 },
+        { id: 'a', serviceId: 'instagram', label: 'A', colour: '#000', order: 1 },
+        { id: 'b', serviceId: 'threads', label: 'B', colour: '#000', order: 2, shareWith: '../x' },
+        { id: 'c', serviceId: 'threads', label: 'C', colour: '#000', order: 3, shareWith: 'missing' },
+        { id: 'd', serviceId: 'threads', label: 'D', colour: '#000', order: 4, shareWith: 'a' },
+        { id: 'e_1', serviceId: 'threads', label: 'E', colour: '#000', order: 5, shareWith: 'a' }
+      ])
+    )
+    expect(loadAccounts(dir).map((x) => x.id)).toEqual(['a', 'd', 'e_1'])
+  })
+
   it('drops a duplicate id and keeps the first row', () => {
     const dir = tmp()
     writeFileSync(

@@ -109,6 +109,7 @@ describe('log out and remove', () => {
     for (const id of ['..', '../..']) await expect(removeAccount(dir, id, deps())).rejects.toThrow()
     expect(existsSync(join(dir, 'Partitions', 'ig1', 'Cookies'))).toBe(true)
     expect(readFileSync(join(root, 'keep.txt'), 'utf8')).toBe('mine')
-    expect(loadAccounts(dir)).toHaveLength(2)
+    // loadAccounts now drops unsafe ids, so a hand-edited file exposes no removable account.
+    expect(loadAccounts(dir)).toHaveLength(0)
   })
 })

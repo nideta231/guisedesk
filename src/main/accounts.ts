@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { writeAtomic, type Fs } from './atomic'
 import { appendEvent } from './events'
@@ -35,8 +35,14 @@ export interface Account {
 
 const file = (dir: string) => join(dir, 'accounts.json')
 
-/** Keeps only usable rows, gives a missing order its array index and drops duplicate ids. Unknown keys stay on valid rows. */
-function sanitizeAccounts(rows: unknown[]): { accounts: Account[]; dropped: number } {
+/** Account ids become partition names and paths, so only plain names are allowed. */
+const PLAIN_ID = /^[A-Za-z0-9_-]+$/
+
+/**
+ * Keeps only usable rows, gives a missing order its array index and drops duplicate ids. Unknown keys stay on valid rows.
+ * `dir` lets a shareWith point at a partition that still exists (removing a host keeps it for the accounts sharing it).
+ */
+function sanitizeAccounts(dir: string, rows: unknown[]): { accounts: Account[]; dropped: number } {
   const seen = new Set<string>()
   const kept: { row: Record<string, unknown>; index: number }[] = []
   let dropped = 0
@@ -47,14 +53,18 @@ function sanitizeAccounts(rows: unknown[]): { accounts: Account[]; dropped: numb
       continue
     }
     const row = r as Record<string, unknown>
-    if (typeof row.id !== 'string' || typeof row.serviceId !== 'string' || typeof row.label !== 'string' || typeof row.colour !== 'string' || seen.has(row.id)) {
+    if (typeof row.id !== 'string' || !PLAIN_ID.test(row.id) || typeof row.serviceId !== 'string' || typeof row.label !== 'string' || typeof row.colour !== 'string' || seen.has(row.id)) {
       dropped++
       continue
     }
     seen.add(row.id)
     kept.push({ row, index })
   }
-  const accounts = kept.map(({ row, index }) => ({
+  // A shared login must point at a plain id: one in the file, or a partition it left behind for its sharers.
+  const known = (id: string) => seen.has(id) || existsSync(join(dir, 'Partitions', id))
+  const valid = kept.filter(({ row }) => row.shareWith === undefined || (typeof row.shareWith === 'string' && PLAIN_ID.test(row.shareWith) && known(row.shareWith)))
+  dropped += kept.length - valid.length
+  const accounts = valid.map(({ row, index }) => ({
     ...(row as unknown as Account),
     order: typeof row.order === 'number' && Number.isFinite(row.order) ? row.order : index
   }))
@@ -65,7 +75,7 @@ export function loadAccounts(dir: string): Account[] {
   try {
     const data = JSON.parse(readFileSync(file(dir), 'utf8'))
     if (!Array.isArray(data)) return []
-    const { accounts, dropped } = sanitizeAccounts(data)
+    const { accounts, dropped } = sanitizeAccounts(dir, data)
     if (dropped) appendEvent(dir, `accounts.json: dropped ${dropped} invalid row${dropped === 1 ? '' : 's'}`)
     return accounts
   } catch {
