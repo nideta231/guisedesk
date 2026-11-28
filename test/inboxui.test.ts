@@ -133,3 +133,49 @@ describe('App inbox wiring (D64)', () => {
     expect(inboxClear).toHaveBeenCalled()
   })
 })
+
+describe('hidden sidebar keeps the inbox reachable (UX-004)', () => {
+  async function app(unread: number) {
+    ;(window as unknown as { guisedesk: unknown }).guisedesk = {
+      lockState: async () => ({ state: 'unlocked' }),
+      onLock: () => {},
+      state: async () => ({ accounts, selectedId: 'a1', disabledServices: [], sidebarHidden: true }),
+      unread: async () => ({}),
+      onUnread: () => {},
+      inbox: async () => ({ items: [], unread }),
+      onInbox: () => {},
+      onSelected: () => {},
+      onOpenSettings: () => {},
+      sleep: async () => ({}),
+      onSleep: () => {},
+      select: vi.fn(),
+      dialog: () => {},
+      onSidebar: () => {},
+      onZoom: () => {},
+      onLinkChoose: () => {},
+      onRowMenuPick: () => {},
+      onUpdate: () => {},
+      updateState: async () => ({ state: 'none' })
+    }
+    const w = mount(App)
+    await flushPromises()
+    return w
+  }
+
+  it('stacks a bell with the unread badge in the hidden strip, and it opens the inbox', async () => {
+    const w = await app(2)
+    expect(w.find('.side').exists()).toBe(false)
+    expect(w.find('.sidestrip .bell').exists()).toBe(true)
+    expect(w.find('.sidestrip .bell .badge').text()).toBe('2')
+    expect(w.find('.sidestrip .bell').attributes('title')).toBe('2 unread notifications')
+    await w.find('.sidestrip .bell').trigger('click')
+    await flushPromises()
+    expect(w.find('.inbox').exists()).toBe(true)
+  })
+
+  it('shows no badge when nothing is unread', async () => {
+    const w = await app(0)
+    expect(w.find('.sidestrip .bell').exists()).toBe(true)
+    expect(w.find('.sidestrip .bell .badge').exists()).toBe(false)
+  })
+})

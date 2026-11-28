@@ -255,10 +255,13 @@ svg.i { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-widt
 .side .grip:hover, .side .grip:active { background: var(--accent); opacity: .5; }
 .foot .hide { width: 26px; height: 26px; }
 .side.mini .foot { flex-direction: column; gap: 6px; }
-.sidestrip { flex: none; width: 24px; display: grid; place-items: center; background: var(--side); border-right: 1px solid var(--line); }
+.sidestrip { flex: none; width: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: var(--side); border-right: 1px solid var(--line); }
 .showside { width: 18px; height: 56px; border-radius: 9px; border: 1px solid var(--line); background: var(--side); color: var(--muted); display: grid; place-items: center; padding: 0; cursor: pointer; }
-.showside:hover { color: var(--text); background: var(--raise); }
+.showside:hover, .sidestrip .bell:hover { color: var(--text); background: var(--raise); }
 .showside .i { width: 14px; height: 14px; }
+.sidestrip .bell { position: relative; width: 18px; height: 24px; border-radius: 9px; border: 1px solid var(--line); background: var(--side); color: var(--muted); display: grid; place-items: center; padding: 0; cursor: pointer; }
+.sidestrip .bell .i { width: 13px; height: 13px; }
+.sidestrip .bell .badge { position: absolute; right: -6px; top: -4px; min-width: 13px; height: 13px; padding: 0 3px; border-radius: 7px; background: var(--accent); color: #fff; font-size: 8px; font-weight: 700; line-height: 13px; text-align: center; box-shadow: 0 0 0 2px var(--side); }
 
 /* Close buttons (D53): every dialog and Settings have an X; click outside and Esc close too. */
 .glass { position: relative; }

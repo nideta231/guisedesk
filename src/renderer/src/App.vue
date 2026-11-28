@@ -16,6 +16,7 @@ import Sidebar from './Sidebar.vue'
 import SplitDivider from './SplitDivider.vue'
 import TopBar from './TopBar.vue'
 import { visibleAccounts } from '../../main/services'
+import { formatCount } from '../../main/unread'
 
 const accounts = ref<AccountRow[]>([])
 const selectedId = ref<string | undefined>()
@@ -494,7 +495,10 @@ async function add(input: Parameters<Window['guisedesk']['add']>[0]) {
   <ResetScreen v-else-if="resetting" @cancel="resetting = false" />
   <LockScreen v-else-if="lockInfo.state === 'locked'" :kind="lockInfo.kind ?? 'pin'" :pin-length="lockInfo.pinLength" :wait-until="lockInfo.waitUntil" @forgot="resetting = true" />
   <div v-else class="shell">
-    <div v-if="sideHidden" class="sidestrip"><button class="showside" title="Show sidebar (Ctrl+B)" aria-label="Show sidebar" @click="hideSidebar(false)"><svg class="i" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" /></svg></button></div>
+    <div v-if="sideHidden" class="sidestrip">
+      <button class="showside" title="Show sidebar (Ctrl+B)" aria-label="Show sidebar" @click="hideSidebar(false)"><svg class="i" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" /></svg></button>
+      <button class="bell" :title="inbox.unread ? inbox.unread + ' unread notifications' : 'Notifications'" aria-label="Notifications" @click="openInbox"><svg class="i" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0" /></svg><span v-if="inbox.unread > 0" class="badge">{{ formatCount(inbox.unread) }}</span></button>
+    </div>
     <Sidebar v-if="!sideHidden" :width="sideWidthPx" @hide="hideSidebar(true)" @resize="resizeSidebar" :accounts="shown" :selected-id="selectedId" :counts="counts" :asleep="asleepIds" :collapsed="collapsed" :update="update.state === 'available'" :inbox-unread="inbox.unread" @inbox="openInbox" @update="openUpdates" @toggle="toggleSidebar" @select="select" @add="openAdd" @mute="mute" @sleep="sleepNow" @reorder="reorder" @settings="openSettings" @account="openSheet" />
     <main class="main">
       <TopBar v-if="!settingsOpen && current" :account="current" :asleep="!!sleep[current.id]" :lock="lockChip" :proxy="current.proxy" :split="!!split" :nav="nav" @lock-menu="openLockMenu" @proxy-menu="openProxyMenu(current!.id)" @reload="reload(current!.id)" @back="back(current!.id)" @forward="forward(current!.id)" @mute="(m) => mute(current!.id, m)" @lock="lockNow" @sleep="sleepNow(current!.id)" @settings="openSheet(current.id)" @reset-zoom="resetZoom(current!.id)" :ads-on="block.ads" :blocked="block.accounts[current.id]?.blocked ?? 0" :popup="block.accounts[current.id]?.popup" @open-popup="openBlockedPopup(current!.id)" @shield="shieldMenu(current!.id)" @extensions="extensionMenu(current!.id)" @split-menu="openSplitMenu" @close-split="closeSplit" />
