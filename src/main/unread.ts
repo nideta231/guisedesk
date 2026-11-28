@@ -15,8 +15,13 @@ export function formatCount(n: number): string {
   return n > 99 ? '99+' : String(n)
 }
 
-export function totalUnread(counts: Record<string, number>): number {
-  return Object.values(counts).reduce((s, n) => s + n, 0)
+/** Total for the tray; with `enabled`, accounts of a switched-off service are left out. */
+export function totalUnread(counts: Record<string, number>, enabled?: readonly string[]): number {
+  if (!enabled) return Object.values(counts).reduce((s, n) => s + n, 0)
+  const ids = new Set(enabled)
+  let total = 0
+  for (const [id, n] of Object.entries(counts)) if (ids.has(id)) total += n
+  return total
 }
 
 /** The same counts without one account, for a logout that must stop advertising its old badge. */

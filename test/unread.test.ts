@@ -26,6 +26,11 @@ describe('parseUnread', () => {
     expect(totalUnread({ a: 3, b: 0, c: 12 })).toBe(15)
     expect(totalUnread({})).toBe(0)
   })
+  it('leaves switched-off services out when the enabled ids are given', () => {
+    expect(totalUnread({ a: 2, b: 5 }, ['a'])).toBe(2)
+    expect(totalUnread({ a: 2, b: 5 }, [])).toBe(0)
+    expect(totalUnread({ a: 2, b: 5 })).toBe(7)
+  })
   it('without drops just the logged-out account and leaves the rest', () => {
     const counts = { a: 3, b: 0, c: 12 }
     expect(without(counts, 'c')).toEqual({ a: 3, b: 0 })

@@ -1497,12 +1497,12 @@ function createWindow(): BrowserWindow {
       if (second) detach(win, second)
       win.webContents.focus()
     }
-    tray.setUnread(totalUnread(counts), !isUnlocked())
+    tray.setUnread(totalUnread(counts, enabled().map((a) => a.id)), !isUnlocked())
     win.webContents.send('lock:changed', lock.info())
   })
   gipc.handle('accounts:state', snapshot)
   const push = () => {
-    tray.setUnread(totalUnread(counts), !isUnlocked())
+    tray.setUnread(totalUnread(counts, enabled().map((a) => a.id)), !isUnlocked())
     if (!win.isDestroyed() && isUnlocked()) win.webContents.send('unread:update', counts)
   }
   const pushSleep = () => {
