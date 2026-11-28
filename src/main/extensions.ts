@@ -12,6 +12,18 @@ export interface InstalledExtension {
   path: string
 }
 
+/** A URL an extension may hand to the OS: web pages and email only. Anything else (file, javascript, a custom handler) is null. */
+export function outboundUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  let u: URL
+  try {
+    u = new URL(value)
+  } catch {
+    return null
+  }
+  return u.protocol === 'http:' || u.protocol === 'https:' || u.protocol === 'mailto:' ? value : null
+}
+
 /** A Chrome Web Store link (old or new store) or a bare 32-letter id, to the extension id; null when neither. */
 export function parseExtensionId(input: string): string | null {
   const s = String(input ?? '').trim()

@@ -21,7 +21,7 @@ import { createBlockState, shieldMenuItems } from './blockstate'
 import { createDispatcher } from './webrequest'
 import { ElectronChromeExtensions } from 'electron-chrome-extensions'
 import { downloadExtension } from 'electron-chrome-web-store'
-import { actionClick, checkExtensionUpdates, createExtensionFetcher, enabledFor, extensionsDir, listInstalled, loadUpdateTimes, parseExtensionId, readManifest, reloadEverywhere, saveUpdateTimes, toggled, type ExtensionUpdate } from './extensions'
+import { actionClick, checkExtensionUpdates, createExtensionFetcher, enabledFor, extensionsDir, listInstalled, loadUpdateTimes, outboundUrl, parseExtensionId, readManifest, reloadEverywhere, saveUpdateTimes, toggled, type ExtensionUpdate } from './extensions'
 import { appendEvent, LOGIN_COOKIES, lostLogins } from './events'
 import { parseWaPage, readDirSafe, storeHasData, waStorePath, whatsappLoggedIn, WA_PAGE_SCRIPT, type WaPage } from './whatsapp'
 import { writeAtomic } from './atomic'
@@ -478,12 +478,16 @@ function extApiFor(ses: Electron.Session): ElectronChromeExtensions {
       session: ses,
       // An extension asking for a tab or window (changelog, checkout) opens in the browser; GuiseDesk has no tabs.
       createTab: async (d) => {
-        if (d.url) void shell.openExternal(String(d.url))
+        const url = outboundUrl(d.url)
+        if (url) void shell.openExternal(url)
+        else if (d.url) appendEvent(dir, `extension tab URL refused ${String(d.url).slice(0, 200)}`)
         throw new Error('tabs are not supported')
       },
       createWindow: async (d) => {
-        const u = Array.isArray(d.url) ? d.url[0] : d.url
-        if (u) void shell.openExternal(String(u))
+        const raw = Array.isArray(d.url) ? d.url[0] : d.url
+        const url = outboundUrl(raw)
+        if (url) void shell.openExternal(url)
+        else if (raw) appendEvent(dir, `extension window URL refused ${String(raw).slice(0, 200)}`)
         throw new Error('windows are not supported')
       }
     })

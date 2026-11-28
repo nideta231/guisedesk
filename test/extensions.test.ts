@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
-import { actionClick, checkExtensionUpdates, compareVersions, createExtensionFetcher, enabledFor, listInstalled, loadUpdateTimes, parseExtensionId, parseUpdateVersion, readManifest, readyCopy, reloadEverywhere, saveUpdateTimes, toggled, updateCheckUrl } from '../src/main/extensions'
+import { actionClick, checkExtensionUpdates, compareVersions, createExtensionFetcher, enabledFor, listInstalled, loadUpdateTimes, outboundUrl, parseExtensionId, parseUpdateVersion, readManifest, readyCopy, reloadEverywhere, saveUpdateTimes, toggled, updateCheckUrl } from '../src/main/extensions'
 import { appendEvent, lostLogins } from '../src/main/events'
 import SettingsExtensions from '../src/renderer/src/SettingsExtensions.vue'
 
@@ -33,6 +33,16 @@ describe('extensions (D49)', () => {
     writeFileSync(join(d, '_locales', 'en', 'messages.json'), JSON.stringify({ appName: { message: 'WA Web Plus' } }))
     mkdirSync(join(root, 'not-an-id'))
     expect(listInstalled(root).map(({ id, name, version }) => ({ id, name, version }))).toEqual([{ id: WAWP, name: 'WA Web Plus', version: '5.2.9' }])
+  })
+})
+
+describe('outbound extension URLs', () => {
+  it('lets web and mail URLs through and drops everything else', () => {
+    expect(outboundUrl('https://x.test/a')).toBe('https://x.test/a')
+    expect(outboundUrl('http://x.test/')).toBe('http://x.test/')
+    expect(outboundUrl('mailto:a@b.test')).toBe('mailto:a@b.test')
+    for (const u of ['file:/etc/passwd', 'javascript:alert(1)', 'data:text/html,<b>x</b>', 'custom-scheme:payload', 'not a url', '', null, 42])
+      expect(outboundUrl(u)).toBeNull()
   })
 })
 
