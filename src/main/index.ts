@@ -710,15 +710,25 @@ function viewFor(a: Account): WebContentsView {
     hookContextMenu(v.webContents)
     // A crashed renderer self-heals once; a hung one offers a reload instead of staying frozen (BG-020).
     const healthWc = v.webContents
+    let hangNote: Notification | undefined
     watchViewHealth(healthWc, {
       reload: () => {
         if (!healthWc.isDestroyed()) healthWc.reload()
       },
       notify: () => {
-        if (!Notification.isSupported()) return
+        // One notice per hang: a repeated unresponsive event must not stack notifications.
+        if (hangNote || !Notification.isSupported()) return
         const n = new Notification({ title: `${a.label} is not responding`, body: 'Click to reload the account.' })
+        hangNote = n
+        // Keep a reference in live, otherwise GC drops the click handler before the user sees the notice.
+        live.add(n)
         n.on('click', () => {
+          hangNote = undefined
           if (!healthWc.isDestroyed()) healthWc.reload()
+        })
+        n.on('close', () => {
+          live.delete(n)
+          if (hangNote === n) hangNote = undefined
         })
         n.show()
       },
