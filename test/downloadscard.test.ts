@@ -31,4 +31,23 @@ describe('Settings > General Downloads card', () => {
     expect(bridge.pickDownloadsDir).toHaveBeenCalled()
     expect(card.find('.path').text()).toBe('/data/files')
   })
+
+  it('Open folder sits next to Change, calls the bridge and shows the error when the folder is gone (UX-008)', async () => {
+    const bridge = {
+      prefs: async () => ({ idleLock: 10, dnd: false, startOnLogin: false }),
+      downloads: vi.fn(async () => ({ dir: '/gone/Downloads', ask: false })),
+      downloadsList: async () => [],
+      blocking: async () => ({ ads: false, popups: true }),
+      openDownloadsFolder: vi.fn(async () => 'The folder does not exist')
+    }
+    ;(window as unknown as { guisedesk: unknown }).guisedesk = bridge
+    const w = mount(SettingsGeneral, { props: { update: { state: 'none' } } })
+    await flushPromises()
+    const card = w.findAll('.card')[1]
+    expect(card.findAll('.btn').map((b) => b.text())).toEqual(['Change...', 'Open folder'])
+    await card.findAll('.btn').find((b) => b.text() === 'Open folder')!.trigger('click')
+    await flushPromises()
+    expect(bridge.openDownloadsFolder).toHaveBeenCalledOnce()
+    expect(card.find('.hint.warn').text()).toBe('The folder does not exist')
+  })
 })

@@ -1367,6 +1367,8 @@ function createWindow(): BrowserWindow {
     return { dir: s.dir ?? app.getPath('downloads'), ask: s.ask }
   }
   gipc.handle('downloads:get', (e: { sender: { id: number } }) => (fromApp(e) ? downloadsView() : undefined))
+  // Open folder (UX-008): shell.openPath resolves to '' on success, or the reason it could not open the folder.
+  gipc.handle('downloads:open', (e: { sender: { id: number } }) => (fromApp(e) ? shell.openPath(downloadsView().dir) : undefined))
   gipc.handle('downloads:set', (e: { sender: { id: number } }, v: { ask?: unknown }) => {
     if (!fromApp(e) || !v || typeof v !== 'object') return false
     saveDownloads(dir, { ...loadDownloads(dir), ask: v.ask === true })

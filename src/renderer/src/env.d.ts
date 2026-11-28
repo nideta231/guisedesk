@@ -286,6 +286,8 @@ interface Window {
     downloads(): Promise<{ dir: string; ask: boolean }>
     setDownloadsAsk(ask: boolean): Promise<boolean>
     pickDownloadsDir(): Promise<string | undefined>
+    /** Open the downloads folder (UX-008): empty on success, or the error to show on the card. */
+    openDownloadsFolder(): Promise<string>
     /** Recent downloads (UX-009): the last 20 finished files, clearing the list, and showing one in its folder. */
     downloadsList(): Promise<DownloadEntryRow[]>
     clearDownloads(): Promise<DownloadEntryRow[]>

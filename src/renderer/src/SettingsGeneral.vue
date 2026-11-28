@@ -65,6 +65,12 @@ async function pick() {
   if (dir) dl.value = { ...dl.value, dir }
 }
 
+// Open folder (UX-008): main answers with an empty string on success, or the reason the folder could not open.
+const dlError = ref('')
+async function openFolder() {
+  dlError.value = (await window.guisedesk.openDownloadsFolder()) || ''
+}
+
 async function toggle() {
   const next = !on.value
   if (await window.guisedesk.setStartOnLogin(next)) on.value = next
@@ -100,7 +106,9 @@ const backupMode = ref<'export' | 'restore' | undefined>()
       <div class="sr">
         <span class="t"><b>Folder</b><span class="path" :title="dl.dir">{{ dl.dir }}</span></span>
         <button class="btn" @click="pick">Change...</button>
+        <button class="btn" @click="openFolder">Open folder</button>
       </div>
+      <div v-if="dlError" class="hint warn">{{ dlError }}</div>
       <div class="sr">
         <span class="t"><b>Ask where to save each time</b><span>Otherwise files go straight to the folder.</span></span>
         <button class="tg" :class="{ on: dl.ask }" role="switch" :aria-checked="dl.ask" aria-label="Ask where to save each time" @click="toggleAsk"></button>

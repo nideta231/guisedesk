@@ -214,6 +214,7 @@ if (service) {
   downloads: () => ipcRenderer.invoke('downloads:get'),
   setDownloadsAsk: (ask: boolean) => ipcRenderer.invoke('downloads:set', { ask }),
   pickDownloadsDir: () => ipcRenderer.invoke('downloads:pick'),
+  openDownloadsFolder: () => ipcRenderer.invoke('downloads:open'),
   downloadsList: () => ipcRenderer.invoke('downloads:list'),
   clearDownloads: () => ipcRenderer.invoke('downloads:clear'),
   showDownload: (path: string) => ipcRenderer.invoke('downloads:show', path),
