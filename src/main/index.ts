@@ -26,7 +26,7 @@ import { appendEvent, LOGIN_COOKIES, lostLogins } from './events'
 import { parseWaPage, readDirSafe, storeHasData, waStorePath, whatsappLoggedIn, WA_PAGE_SCRIPT, type WaPage } from './whatsapp'
 import { writeAtomic } from './atomic'
 import { normalizeSchedule, type LockSchedule } from './schedule'
-import { parseUnread, totalUnread, without } from './unread'
+import { parseUnread, totalUnread, updateWindowTitle, without } from './unread'
 import { createTray } from './tray'
 import { decideNotification, quietOutsideWorkHours } from './notify'
 import { applyPermissionPolicy } from './permissions'
@@ -1539,13 +1539,18 @@ function createWindow(): BrowserWindow {
       if (second) detach(win, second)
       win.webContents.focus()
     }
-    tray.setUnread(totalUnread(counts, enabled().map((a) => a.id)), !isUnlocked())
+    const total = totalUnread(counts, enabled().map((a) => a.id))
+    tray.setUnread(total, !isUnlocked())
+    if (!win.isDestroyed()) updateWindowTitle(win, total, !isUnlocked())
     win.webContents.send('lock:changed', lock.info())
   })
   gipc.handle('accounts:state', snapshot)
   const push = () => {
-    tray.setUnread(totalUnread(counts, enabled().map((a) => a.id)), !isUnlocked())
-    if (!win.isDestroyed() && isUnlocked()) win.webContents.send('unread:update', counts)
+    const total = totalUnread(counts, enabled().map((a) => a.id))
+    const locked = !isUnlocked()
+    tray.setUnread(total, locked)
+    if (!win.isDestroyed()) updateWindowTitle(win, total, locked)
+    if (!win.isDestroyed() && !locked) win.webContents.send('unread:update', counts)
   }
   const pushSleep = () => {
     if (!win.isDestroyed() && isUnlocked()) win.webContents.send('sleep:update', { ...sleepState })

@@ -30,3 +30,15 @@ export function without(counts: Record<string, number>, id: string): Record<stri
   delete out[id]
   return out
 }
+
+/** The window title (UX-011): the unread total while unlocked, plain while locked. */
+export function windowTitle(total: number, locked: boolean): string {
+  return !locked && total > 0 ? `(${total}) GuiseDesk` : 'GuiseDesk'
+}
+
+/** Applies the title through a tiny window interface so vitest can pass a fake. */
+export function updateWindowTitle(win: { setTitle(title: string): void }, total: number, locked: boolean): string {
+  const title = windowTitle(total, locked)
+  win.setTitle(title)
+  return title
+}

@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { formatCount, parseUnread, totalUnread, without } from '../src/main/unread'
+import { describe, expect, it, vi } from 'vitest'
+import { formatCount, parseUnread, totalUnread, updateWindowTitle, windowTitle, without } from '../src/main/unread'
 import { presetFor } from '../src/main/presets'
 
 describe('parseUnread', () => {
@@ -36,5 +36,22 @@ describe('parseUnread', () => {
     expect(without(counts, 'c')).toEqual({ a: 3, b: 0 })
     expect(counts).toEqual({ a: 3, b: 0, c: 12 })
     expect(without({}, 'a')).toEqual({})
+  })
+})
+
+describe('window title (UX-011)', () => {
+  it('carries the unread total while unlocked and stays plain while locked', () => {
+    expect(windowTitle(3, false)).toBe('(3) GuiseDesk')
+    expect(windowTitle(0, false)).toBe('GuiseDesk')
+    expect(windowTitle(3, true)).toBe('GuiseDesk')
+    expect(windowTitle(0, true)).toBe('GuiseDesk')
+  })
+
+  it('sets the title on the window, as push does', () => {
+    const win = { setTitle: vi.fn() }
+    expect(updateWindowTitle(win, 7, false)).toBe('(7) GuiseDesk')
+    expect(win.setTitle).toHaveBeenCalledExactlyOnceWith('(7) GuiseDesk')
+    updateWindowTitle(win, 7, true)
+    expect(win.setTitle).toHaveBeenLastCalledWith('GuiseDesk')
   })
 })
