@@ -5,7 +5,7 @@ import { homedir, tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, Notification, nativeImage, powerMonitor, session, shell, WebContentsView } from 'electron'
 import { appRoot, dataDir, devUnlocked } from './paths'
-import { addAccount, editAccount, IDLE_POLICIES, loadAccounts, loadDisabled, loadDnd, loadIdleMinutes, loadProxyAuth, loadQuietWorkHours, loadSchedule, loadSplit, saveProxyAuth, saveSchedule, saveSplit, saveQuietWorkHours, loadSelected, loadSidebarCollapsed, saveSidebarCollapsed, loadSidebarLayout, saveSidebarLayout, orderedAccounts, saveDnd, saveSelected, setAccountProxy, setIdlePolicy, reorderAccounts, setMuted, setBlurMedia, setBlurPart, setKeepDeleted, setExtensions, setServiceEnabled, setZoom, type Account, type SplitState } from './accounts'
+import { addAccount, editAccount, IDLE_POLICIES, loadAccounts, loadDisabled, loadDnd, loadIdleMinutes, loadProxyAuth, loadQuietWorkHours, loadSchedule, loadSplit, saveProxyAuth, saveSchedule, saveSplit, saveQuietWorkHours, loadSelected, loadSidebarCollapsed, saveSidebarCollapsed, loadSidebarLayout, saveSidebarLayout, orderedAccounts, saveDnd, loadTrayHintShown, saveTrayHintShown, saveSelected, setAccountProxy, setIdlePolicy, reorderAccounts, setMuted, setBlurMedia, setBlurPart, setKeepDeleted, setExtensions, setServiceEnabled, setZoom, type Account, type SplitState } from './accounts'
 import { logOut, removeAccount } from './accountops'
 import { overlay } from './composite'
 import { cacheFavicon, readIcon, type Fetcher } from './favicon'
@@ -61,6 +61,7 @@ import { isReportableLoadError, shouldClearErrorOnFinish, shouldClearErrorOnStar
 import { goBack, goForward, navState } from './nav'
 import { openAppTarget } from './appopen'
 import { runQuit } from './appquit'
+import { maybeShowTrayHint } from './trayhint'
 import { watchViewHealth } from './viewhealth'
 
 // Both must run before `ready`. setName first: it resets the default userData path, which setPath then overrides,
@@ -993,10 +994,22 @@ function createWindow(): BrowserWindow {
     if (!win.isDestroyed() && isUnlocked()) win.webContents.send('prefs:dnd-changed', on)
   })
   // Close hides to the tray; only quitting (tray Quit, session end) really closes.
+  // The first close explains this once (UX-032); the notice is generic, so it is safe while locked.
   win.on('close', (e) => {
     if (quitting) return
     e.preventDefault()
     win.hide()
+    maybeShowTrayHint({
+      shown: () => loadTrayHintShown(dir),
+      save: () => saveTrayHintShown(dir, true),
+      notify: () => {
+        if (!Notification.isSupported()) return
+        const n = new Notification({ title: 'GuiseDesk is still running', body: 'Click the tray icon to reopen it.' })
+        live.add(n)
+        n.on('close', () => live.delete(n))
+        n.show()
+      }
+    })
   })
 
   disabled = new Set(loadDisabled(dir))

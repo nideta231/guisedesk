@@ -227,6 +227,19 @@ export function saveDnd(dir: string, dnd: boolean): void {
   updateSettings(dir, { dnd })
 }
 
+/** First close to the tray (UX-032) in settings.json key trayHintShown; the hint is due when missing. */
+export function loadTrayHintShown(dir: string): boolean {
+  try {
+    return JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8')).trayHintShown === true
+  } catch {
+    return false
+  }
+}
+
+export function saveTrayHintShown(dir: string, shown: boolean): void {
+  updateSettings(dir, { trayHintShown: shown })
+}
+
 /** Quiet outside work hours (D58) lives in settings.json key quietWorkHours; off when missing. */
 export function loadQuietWorkHours(dir: string): boolean {
   try {
