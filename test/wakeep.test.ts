@@ -7,7 +7,7 @@ import { mount } from '@vue/test-utils'
 import AccountSheet from '../src/renderer/src/AccountSheet.vue'
 import { addAccount, loadAccounts, setKeepDeleted } from '../src/main/accounts'
 import { PRESETS } from '../src/main/presets'
-import { isRevoked, noteFor, parseWakeepHint, prune, renderDeleted, snapshot, startKeeper, wakeepScript, type Entry, type KeepStore } from '../src/preload/wakeep'
+import { idbStore, isRevoked, noteFor, parseWakeepHint, prune, renderDeleted, snapshot, startKeeper, wakeepScript, type Entry, type KeepStore } from '../src/preload/wakeep'
 
 const DAY = 86_400_000
 const NOW = 1_800_000_000_000
@@ -35,6 +35,28 @@ const memStore = (init: Entry[] = []): KeepStore & { rows: Map<string, Entry> } 
     put: async (e) => void rows.set(e.id, { ...e }),
     remove: async (ids) => void ids.forEach((i) => rows.delete(i))
   }
+}
+
+const fakeIdb = () => {
+  let opens = 0
+  let closes = 0
+  const db = {
+    transaction() {
+      const tx: any = { objectStore: () => ({ getAll: () => ({ result: [] }), put: () => ({}), delete: () => ({}) }) }
+      setTimeout(() => tx.oncomplete?.(), 0)
+      return tx
+    },
+    close() { closes++ }
+  }
+  const factory = {
+    open() {
+      opens++
+      const req: any = {}
+      setTimeout(() => { req.result = db; req.onsuccess?.() }, 0)
+      return req
+    }
+  }
+  return { factory: factory as unknown as IDBFactory, opens: () => opens, closes: () => closes }
 }
 
 const row = (id: string, text = 'This message was deleted') => {
@@ -186,6 +208,18 @@ describe('startKeeper', () => {
     for (const r of document.querySelectorAll('.row')) expect(r.querySelectorAll('.gd-deleted').length).toBe(1)
     expect(document.querySelector('.legacy .gd-deleted')?.textContent).toContain('msg-49')
     k?.stop()
+  })
+
+  it('opens IndexedDB once for three puts and closes it when the keeper stops', async () => {
+    const coll = new FakeColl(), idb = fakeIdb()
+    const k = await start(coll, idbStore(idb.factory))
+    expect(idb.opens()).toBe(1)
+    for (let i = 0; i < 3; i++) coll.add(model({ id: { _serialized: `false_222@c.us_M${i}`, fromMe: false, remote: { _serialized: '222@c.us' } }, body: `note ${i}` }))
+    await settle()
+    expect(idb.opens()).toBe(1)
+    expect(idb.closes()).toBe(0)
+    k?.stop()
+    expect(idb.closes()).toBe(1)
   })
 
   it('store not found: one warning, state unavailable, nothing thrown', async () => {

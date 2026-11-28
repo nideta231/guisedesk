@@ -21,6 +21,8 @@ export interface KeepStore {
   all(): Promise<Entry[]>
   put(e: Entry): Promise<void>
   remove(ids: string[]): Promise<void>
+  /** Releases a connection that is kept open between operations (IndexedDB). */
+  close?: () => void
 }
 
 export interface KeeperDeps {
@@ -156,29 +158,35 @@ export function findStore(win: any): any {
   return null
 }
 
-/** The page's IndexedDB database `gd-wakeep` (per origin, so per account partition). */
+/** The page's IndexedDB database `gd-wakeep` (per origin, so per account partition); one connection per keeper. */
 export function idbStore(idb: IDBFactory): KeepStore {
-  const open = (): Promise<IDBDatabase> =>
-    new Promise((resolve, reject) => {
+  let db: IDBDatabase | null = null
+  let opening: Promise<IDBDatabase> | null = null
+  const open = (): Promise<IDBDatabase> => {
+    if (opening) return opening
+    opening = new Promise((resolve, reject) => {
       const r = idb.open('gd-wakeep', 1)
       r.onupgradeneeded = () => void r.result.createObjectStore('msgs', { keyPath: 'id' })
-      r.onsuccess = () => resolve(r.result)
-      r.onerror = () => reject(r.error)
+      r.onsuccess = () => { db = r.result; resolve(r.result) }
+      r.onerror = () => { opening = null; reject(r.error) }
     })
+    return opening
+  }
   const run = <T>(mode: IDBTransactionMode, f: (s: IDBObjectStore) => IDBRequest<T> | void): Promise<T | undefined> =>
     open().then(
-      (db) =>
+      (conn) =>
         new Promise<T | undefined>((resolve, reject) => {
-          const tx = db.transaction('msgs', mode)
+          const tx = conn.transaction('msgs', mode)
           const req = f(tx.objectStore('msgs'))
-          tx.oncomplete = () => { db.close(); resolve(req ? req.result : undefined) }
-          tx.onerror = () => { db.close(); reject(tx.error) }
+          tx.oncomplete = () => resolve(req ? req.result : undefined)
+          tx.onerror = () => reject(tx.error)
         })
     )
   return {
     all: () => run<Entry[]>('readonly', (s) => s.getAll()).then((r) => r || []),
     put: (e) => run('readwrite', (s) => void s.put(e)).then(() => undefined),
-    remove: (ids) => run('readwrite', (s) => void ids.forEach((i) => s.delete(i))).then(() => undefined)
+    remove: (ids) => run('readwrite', (s) => void ids.forEach((i) => s.delete(i))).then(() => undefined),
+    close: () => { db?.close(); db = null; opening = null }
   }
 }
 
@@ -275,7 +283,7 @@ export async function startKeeper(d: KeeperDeps): Promise<{ stop: () => void } |
     renderAll()
     const timer = setInterval(() => void cleanup().catch(() => {}), 3_600_000)
     d.onState('ok')
-    return { stop: () => { clearInterval(timer); if (obs) obs.disconnect(); if (pending) clearTimeout(pending) } }
+    return { stop: () => { clearInterval(timer); if (obs) obs.disconnect(); if (pending) clearTimeout(pending); d.store.close?.() } }
   } catch (e) {
     return fail(e)
   }
