@@ -72,6 +72,26 @@ describe('AddAccount dialog', () => {
     expect(sw[2].attributes('aria-checked')).toBe('true')
   })
 
+  it('Enter submits the form from any text field, including a custom URL, once (UX-041)', async () => {
+    const w = mount(AddAccount)
+    await pick(w, 'Custom URL').trigger('click')
+    await w.find('input.cname').setValue('Team wiki')
+    await w.find('input.label').setValue('Wiki')
+    await w.find('input.curl').setValue('https://wiki.example.com/')
+    await w.find('input.curl').trigger('keydown', { key: 'Enter' })
+    expect(w.emitted('add')).toHaveLength(1)
+    expect(w.emitted('add')![0][0]).toMatchObject({
+      serviceId: 'custom', label: 'Wiki', custom: { name: 'Team wiki', url: 'https://wiki.example.com/' }
+    })
+
+    const w2 = mount(AddAccount)
+    await w2.find('.btn.pri').trigger('click')
+    expect(w2.find('.err').text()).toBe('Label is required')
+    await w2.find('input.label').setValue('Business')
+    await w2.find('input.label').trigger('keydown', { key: 'Enter' })
+    expect(w2.emitted('add')).toHaveLength(1)
+  })
+
   it('Cancel emits cancel and no add', async () => {
     const w = mount(AddAccount)
     await w.findAll('.btn').find((b) => b.text() === 'Cancel')!.trigger('click')

@@ -67,57 +67,59 @@ function submit() {
       <button class="ib x" title="Close (Esc)" aria-label="Close" @click="emit('cancel')"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
       <h3>Add an account</h3>
       <p class="sub">Each account gets its own sealed session. You'll log in inside GuiseDesk right after.</p>
-      <div class="pick" role="radiogroup" aria-label="Service">
-        <button
-          v-for="s in services"
-          :key="s.id"
-          type="button"
-          role="radio"
-          :aria-checked="s.id === serviceId"
-          class="pk"
-          :class="{ sel: s.id === serviceId }"
-          @click="serviceId = s.id"
-          @keydown.enter.prevent="serviceId = s.id"
-        >
-          <div class="lg" :style="logoStyle(s.id)"><LogoGlyph :service-id="s.id" /></div>{{ s.name }}
-        </button>
-      </div>
-      <template v-if="isCustom">
-        <div class="lbl">Name</div>
-        <input v-model="cname" class="inp cname" placeholder="Team wiki" />
-        <div class="lbl">URL</div>
-        <input v-model="curl" class="inp curl" placeholder="https://wiki.example.com/" />
-      </template>
-      <div class="lbl">Label</div>
-      <input v-model="label" class="inp label" placeholder="Business" @keydown.enter="submit" />
-      <template v-if="hosts.length">
-        <div class="lbl">Login</div>
-        <div class="seg login">
-          <span :class="{ sel: !share }" @click="share = undefined">Separate</span>
-          <span v-for="h in hosts" :key="h.id" :class="{ sel: share === h.id }" @click="share = h.id">{{ hostText(h) }}</span>
+      <form @submit.prevent="submit">
+        <div class="pick" role="radiogroup" aria-label="Service">
+          <button
+            v-for="s in services"
+            :key="s.id"
+            type="button"
+            role="radio"
+            :aria-checked="s.id === serviceId"
+            class="pk"
+            :class="{ sel: s.id === serviceId }"
+            @click="serviceId = s.id"
+            @keydown.enter.prevent="serviceId = s.id"
+          >
+            <div class="lg" :style="logoStyle(s.id)"><LogoGlyph :service-id="s.id" /></div>{{ s.name }}
+          </button>
         </div>
-      </template>
-      <div class="lbl">Colour</div>
-      <div class="sw" role="radiogroup" aria-label="Colour">
-        <button
-          v-for="(c, n) in COLOURS"
-          :key="c"
-          type="button"
-          role="radio"
-          :aria-checked="c === colour"
-          :aria-label="'Colour ' + (n + 1)"
-          :class="{ sel: c === colour }"
-          :style="{ background: c }"
-          @click="colour = c"
-          @keydown.enter.prevent="colour = c"
-        ></button>
-      </div>
-      <div class="hint">{{ hint }}</div>
-      <div v-if="error || props.serverError" class="err">{{ error || props.serverError }}</div>
-      <div class="btns">
-        <button class="btn" @click="emit('cancel')">Cancel</button>
-        <button class="btn pri" @click="submit">Add &amp; open</button>
-      </div>
+        <template v-if="isCustom">
+          <div class="lbl">Name</div>
+          <input v-model="cname" class="inp cname" placeholder="Team wiki" @keydown.enter.prevent="submit" />
+          <div class="lbl">URL</div>
+          <input v-model="curl" class="inp curl" placeholder="https://wiki.example.com/" @keydown.enter.prevent="submit" />
+        </template>
+        <div class="lbl">Label</div>
+        <input v-model="label" class="inp label" placeholder="Business" @keydown.enter.prevent="submit" />
+        <template v-if="hosts.length">
+          <div class="lbl">Login</div>
+          <div class="seg login">
+            <span :class="{ sel: !share }" @click="share = undefined">Separate</span>
+            <span v-for="h in hosts" :key="h.id" :class="{ sel: share === h.id }" @click="share = h.id">{{ hostText(h) }}</span>
+          </div>
+        </template>
+        <div class="lbl">Colour</div>
+        <div class="sw" role="radiogroup" aria-label="Colour">
+          <button
+            v-for="(c, n) in COLOURS"
+            :key="c"
+            type="button"
+            role="radio"
+            :aria-checked="c === colour"
+            :aria-label="'Colour ' + (n + 1)"
+            :class="{ sel: c === colour }"
+            :style="{ background: c }"
+            @click="colour = c"
+            @keydown.enter.prevent="colour = c"
+          ></button>
+        </div>
+        <div class="hint">{{ hint }}</div>
+        <div v-if="error || props.serverError" class="err">{{ error || props.serverError }}</div>
+        <div class="btns">
+          <button type="button" class="btn" @click="emit('cancel')">Cancel</button>
+          <button type="submit" class="btn pri" @click.prevent="submit">Add &amp; open</button>
+        </div>
+      </form>
     </div>
   </div>
 </template>
