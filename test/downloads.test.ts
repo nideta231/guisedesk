@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { doneNotice, downloadOutcome, loadDownloads, saveDownloads, uniquePath } from '../src/main/downloads'
+import { doneNotice, downloadOutcome, loadDownloads, pickFolder, saveDownloads, uniquePath } from '../src/main/downloads'
 
 describe('downloads settings', () => {
   it('defaults to ask off and no folder; round-trip keeps other settings.json keys', () => {
@@ -31,6 +31,15 @@ describe('uniquePath', () => {
     expect(uniquePath('/d', '.bashrc', none)).toBe('/d/bashrc')
     expect(uniquePath('/d', '', none)).toBe('/d/download')
     expect(uniquePath('/d', '...', none)).toBe('/d/download')
+  })
+})
+
+describe('pickFolder', () => {
+  it('uses the saved folder while it exists and falls back to the system Downloads folder', () => {
+    expect(pickFolder('/gone', '/home/x/Downloads', (p) => p === '/home/x/Downloads')).toBe('/home/x/Downloads')
+    expect(pickFolder('/media/usb/Downloads', '/home/x/Downloads', (p) => p === '/media/usb/Downloads')).toBe('/media/usb/Downloads')
+    expect(pickFolder(undefined, '/home/x/Downloads', () => true)).toBe('/home/x/Downloads')
+    expect(pickFolder('', '/home/x/Downloads', () => true)).toBe('/home/x/Downloads')
   })
 })
 

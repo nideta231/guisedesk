@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, Notification, nativeImage, powerMonitor, session, shell, WebContentsView } from 'electron'
@@ -41,7 +41,7 @@ import { applyIdle } from './prefs'
 import { checkForUpdate, realRun, type UpdateInfo } from './updater'
 import { version } from '../../package.json'
 import { buildContextMenu, rowMenuItems } from './contextmenu'
-import { doneNotice, downloadOutcome, loadDownloads, saveDownloads, uniquePath } from './downloads'
+import { doneNotice, downloadOutcome, loadDownloads, pickFolder, saveDownloads, uniquePath } from './downloads'
 import { isHelpShortcut, isSwitcherShortcut, nextZoom, switchTarget, zoomKey, type KeyInput } from './shortcuts'
 import { sidebarOrder } from './services'
 import { PARTS, partsOn, type Part } from '../preload/blur'
@@ -626,12 +626,21 @@ function activateExtension(wc: Electron.WebContents, extId: string, win: Browser
     console.error('[guisedesk] extension click failed', extId, err)
   }
 }
+const isExistingFolder = (path: string): boolean => {
+  try {
+    return statSync(path).isDirectory()
+  } catch {
+    return false
+  }
+}
 function hookDownloads(ses: Electron.Session): void {
   if (hookedSessions.has(ses)) return
   hookedSessions.add(ses)
   ses.on('will-download', (_e, item) => {
     const s = loadDownloads(dir)
-    const folder = s.dir ?? app.getPath('downloads')
+    const folder = pickFolder(s.dir, app.getPath('downloads'), isExistingFolder)
+    // Remember the fallback so the next download does not look at the missing drive again.
+    if (s.dir && folder !== s.dir) saveDownloads(dir, { ...s, dir: folder })
     const name = item.getFilename()
     if (s.ask) item.setSaveDialogOptions({ defaultPath: uniquePath(folder, name, existsSync) })
     else item.setSavePath(uniquePath(folder, name, existsSync))

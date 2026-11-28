@@ -34,6 +34,11 @@ function safeName(name: string): string {
   return last || 'download'
 }
 
+/** The saved folder only while it still exists; an unplugged drive falls back to the system Downloads folder. */
+export function pickFolder(saved: string | undefined, system: string, exists: (path: string) => boolean): string {
+  return saved && exists(saved) ? saved : system
+}
+
 /** dir/name, or dir/name (1).ext, (2)... for the first one that does not exist. */
 export function uniquePath(dir: string, name: string, exists: (path: string) => boolean): string {
   const safe = safeName(name)
