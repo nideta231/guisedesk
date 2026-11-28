@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   addInbox,
   filterInbox,
@@ -14,7 +14,7 @@ import {
   unreadCount,
   type InboxItem
 } from '../src/main/inbox'
-import { loadInbox, saveInbox } from '../src/main/inboxstore'
+import { createInboxSaver, loadInbox, saveInbox } from '../src/main/inboxstore'
 
 const item = (id: string, time: number, opts: Partial<InboxItem> = {}): InboxItem => ({
   id,
@@ -91,5 +91,60 @@ describe('notification inbox (D64)', () => {
     expect(statSync(join(dir, 'inbox.json')).mode & 0o777).toBe(0o600)
     writeFileSync(join(dir, 'inbox.json'), 'not json')
     expect(loadInbox(dir)).toEqual([])
+  })
+})
+
+describe('inbox saver debounce', () => {
+  it('turns a burst of five adds into one write after one second', () => {
+    vi.useFakeTimers()
+    try {
+      const write = vi.fn()
+      const saver = createInboxSaver(write)
+      let items: InboxItem[] = []
+      for (let i = 0; i < 5; i++) {
+        items = addInbox(items, item(`i${i}`, 1000 + i))
+        saver.save(items)
+      }
+      expect(write).not.toHaveBeenCalled()
+      vi.advanceTimersByTime(999)
+      expect(write).not.toHaveBeenCalled()
+      vi.advanceTimersByTime(1)
+      expect(write).toHaveBeenCalledTimes(1)
+      expect(write.mock.calls[0][0]).toHaveLength(5)
+      expect(write.mock.calls[0][0][0].id).toBe('i4')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('flush writes the latest list immediately and cancels the pending timer', () => {
+    vi.useFakeTimers()
+    try {
+      const write = vi.fn()
+      const saver = createInboxSaver(write)
+      saver.save([item('a', 1)])
+      saver.save([item('b', 2)])
+      saver.flush()
+      expect(write).toHaveBeenCalledTimes(1)
+      expect(write.mock.calls[0][0][0].id).toBe('b')
+      vi.advanceTimersByTime(5000)
+      expect(write).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a flush with nothing pending writes nothing, and the 200-item cap still holds', () => {
+    const write = vi.fn()
+    const saver = createInboxSaver(write)
+    saver.flush()
+    expect(write).not.toHaveBeenCalled()
+    let items: InboxItem[] = []
+    for (let i = 0; i < MAX_INBOX + 5; i++) {
+      items = addInbox(items, item(`i${i}`, 1000 + i))
+      saver.save(items)
+    }
+    saver.flush()
+    expect(write.mock.calls[0][0]).toHaveLength(MAX_INBOX)
   })
 })

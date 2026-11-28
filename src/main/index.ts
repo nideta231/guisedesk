@@ -53,7 +53,7 @@ import { applyPendingRestore } from './backup'
 import { backupFileName } from './backuprules'
 import { runBackupWorker } from './backupengine'
 import { addInbox, inboxItem, markAllRead, markRead, unreadCount, type InboxItem } from './inbox'
-import { loadInbox, saveInbox } from './inboxstore'
+import { createInboxSaver, loadInbox, saveInbox } from './inboxstore'
 import { flushSessions, flushThenClose, sessionKeys } from './sessionlife'
 import { onceMainFrameSettled } from './mainframe'
 import { watchViewHealth } from './viewhealth'
@@ -63,6 +63,8 @@ import { watchViewHealth } from './viewhealth'
 app.setName('GuiseDesk')
 app.setDesktopName('guisedesk.desktop')
 const dir = dataDir(process.env, homedir())
+// Notification bursts are coalesced into one inbox.json write; quit, lock and reset flush it.
+const inboxSaver = createInboxSaver((items) => saveInbox(dir, items))
 mkdirSync(dir, { recursive: true })
 app.setPath('userData', dir)
 // One copy per data dir (D35): the lock follows userData, so dev and test dirs get their own. A second copy exits here,
@@ -780,7 +782,7 @@ function notify(win: BrowserWindow, a: Account, p: { title?: string; body?: stri
   // While locked only the account id and a generic title are stored; the sender and the body never reach disk.
   if (!disabled.has(a.serviceId)) {
     inbox = addInbox(inbox, inboxItem(event, { id: randomUUID(), time: Date.now(), locked }))
-    saveInbox(dir, inbox)
+    inboxSaver.save(inbox)
     onInbox()
   }
   if (d.action === 'drop' || !Notification.isSupported()) return
@@ -1441,7 +1443,8 @@ function createWindow(): BrowserWindow {
     accounts = []
     selectedId = undefined
     inbox = []
-    saveInbox(dir, inbox)
+    inboxSaver.save(inbox)
+    inboxSaver.flush()
     for (const k of Object.keys(counts)) delete counts[k]
     for (const k of Object.keys(sleepState)) delete sleepState[k]
     blockState.clear()
@@ -1485,6 +1488,7 @@ function createWindow(): BrowserWindow {
       dialogOpen = false
       pending = undefined
       popups.closeAll()
+      inboxSaver.flush()
       if (attached) detach(win, attached)
       if (second) detach(win, second)
       win.webContents.focus()
@@ -1528,21 +1532,21 @@ function createWindow(): BrowserWindow {
   gipc.handle('inbox:read', (e: { sender: { id: number } }, id: unknown) => {
     if (!fromApp(e) || typeof id !== 'string') return undefined
     inbox = markRead(inbox, id)
-    saveInbox(dir, inbox)
+    inboxSaver.save(inbox)
     pushInbox()
     return inboxView()
   })
   gipc.handle('inbox:read-all', (e: { sender: { id: number } }) => {
     if (!fromApp(e)) return undefined
     inbox = markAllRead(inbox)
-    saveInbox(dir, inbox)
+    inboxSaver.save(inbox)
     pushInbox()
     return inboxView()
   })
   gipc.handle('inbox:clear', (e: { sender: { id: number } }) => {
     if (!fromApp(e)) return undefined
     inbox = []
-    saveInbox(dir, inbox)
+    inboxSaver.save(inbox)
     appendEvent(dir, 'notification inbox cleared')
     pushInbox()
     return inboxView()
@@ -1648,7 +1652,7 @@ function createWindow(): BrowserWindow {
     if (removedKey && !accounts.some((a) => partitionKey(a) === removedKey)) saveProxyAuth(dir, removedKey, undefined)
     // The removed account's inbox rows go with it (D64).
     inbox = inbox.filter((i) => accounts.some((a) => a.id === i.accountId))
-    saveInbox(dir, inbox)
+    inboxSaver.save(inbox)
     onInbox()
     delete counts[id]
     delete sleepState[id]
@@ -2181,6 +2185,7 @@ app.on('before-quit', (event) => {
   if (quitFlushed) return
   event.preventDefault()
   appendEvent(dir, 'quit')
+  inboxSaver.flush()
   // Write cookies and storage to disk before exit, including accounts that are asleep and have no view, so a
   // login or IndexedDB write from the last seconds before quit is kept. The 2 s cap keeps a stuck disk from hanging quit.
   void flushSessions(sessionKeys(loadAccounts(dir)), (key) => session.fromPartition(`persist:${key}`), 2000).then(() => {
