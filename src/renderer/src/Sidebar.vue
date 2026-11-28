@@ -14,10 +14,13 @@ interface Acc {
   id: string; serviceId: string; label: string; colour: string; order: number; muted?: boolean
   custom?: { name: string; url: string; icon?: string }
 }
-const props = defineProps<{ accounts: Acc[]; selectedId?: string; counts?: Record<string, number>; asleep?: string[]; collapsed?: boolean; update?: boolean; width?: number; inboxUnread?: number }>()
-const emit = defineEmits<{ select: [id: string]; add: []; settings: []; account: [id: string]; mute: [id: string, muted: boolean]; sleep: [id: string]; toggle: []; update: []; reorder: [ids: string[]] ; hide: []; resize: [width: number]; inbox: [] }>()
+const props = defineProps<{ accounts: Acc[]; selectedId?: string; counts?: Record<string, number>; asleep?: string[]; collapsed?: boolean; update?: boolean; width?: number; inboxUnread?: number; disabled?: string[] }>()
+const emit = defineEmits<{ select: [id: string]; add: []; settings: [tab?: string]; account: [id: string]; mute: [id: string, muted: boolean]; sleep: [id: string]; toggle: []; update: []; reorder: [ids: string[]] ; hide: []; resize: [width: number]; inbox: [] }>()
 
 const groups = computed(() => sidebarGroups(props.accounts))
+// Services switched off in Settings (UX-045): their accounts are hidden here, so the footer says how many are off.
+const offCount = computed(() => (props.disabled ?? []).length)
+const offLabel = computed(() => (offCount.value === 1 ? '1 service off' : `${offCount.value} services off`))
 
 // Drag to reorder (D28): only within a group. The dragged row takes the target's place; the line shows which side it lands on.
 const dragId = ref<string | undefined>()
@@ -114,7 +117,7 @@ onBeforeUnmount(() => offRowMenu?.())
       </div>
     </div>
     <div class="grow"></div>
-    <div class="foot"><button class="ib tgl" :title="collapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'" :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'" @click="emit('toggle')"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></svg><i v-if="update && collapsed" class="upd dot" title="Update available" @click.stop="emit('update')"></i></button><button class="ib bell" :title="inboxUnread ? inboxUnread + ' unread notifications' : 'Notifications'" aria-label="Notifications" @click="emit('inbox')"><svg class="i" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0" /></svg><span v-if="(inboxUnread ?? 0) > 0" class="badge">{{ formatCount(inboxUnread!) }}</span></button><button class="ib hide" title="Hide sidebar (Ctrl+B brings it back)" aria-label="Hide sidebar" @click="emit('hide')"><svg class="i" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" /></svg></button><span v-if="!collapsed" class="ver">GuiseDesk v{{ version }}</span><button v-if="update && !collapsed" class="upd" title="Update available" @click="emit('update')">Update</button></div>
+    <div class="foot"><button class="ib tgl" :title="collapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'" :aria-label="collapsed ? 'Expand sidebar' : 'Collapse sidebar'" @click="emit('toggle')"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></svg><i v-if="update && collapsed" class="upd dot" title="Update available" @click.stop="emit('update')"></i></button><button class="ib bell" :title="inboxUnread ? inboxUnread + ' unread notifications' : 'Notifications'" aria-label="Notifications" @click="emit('inbox')"><svg class="i" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0" /></svg><span v-if="(inboxUnread ?? 0) > 0" class="badge">{{ formatCount(inboxUnread!) }}</span></button><button class="ib hide" title="Hide sidebar (Ctrl+B brings it back)" aria-label="Hide sidebar" @click="emit('hide')"><svg class="i" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" /></svg></button><button v-if="offCount" class="ib offs" :title="offLabel" :aria-label="offLabel" @click="emit('settings', 'Services')"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M5.6 5.6l12.8 12.8" /></svg><span v-if="!collapsed" class="offtxt">{{ offLabel }}</span></button><span v-if="!collapsed" class="ver">GuiseDesk v{{ version }}</span><button v-if="update && !collapsed" class="upd" title="Update available" @click="emit('update')">Update</button></div>
     <div v-if="!collapsed" class="grip" title="Drag to resize" @pointerdown.prevent="startDrag"></div>
   </aside>
 </template>
@@ -123,6 +126,9 @@ onBeforeUnmount(() => offRowMenu?.())
 .foot { gap: 8px; }
 .foot .ver { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .foot .bell { position: relative; flex: none; }
+.foot .offs { flex: none; color: var(--muted); font-size: 11px; gap: 4px; }
+.foot .offs:hover { color: var(--fg); }
+.foot .offs .offtxt { white-space: nowrap; }
 .foot .bell .badge { position: absolute; right: -4px; top: -5px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--accent); color: #fff; font-size: 9.5px; font-weight: 700; line-height: 16px; text-align: center; box-shadow: 0 0 0 2px var(--side); }
 .side.mini .foot .bell .badge { right: -5px; top: -5px; }
 </style>

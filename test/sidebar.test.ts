@@ -182,6 +182,33 @@ describe('Sidebar', () => {
     })
   })
 
+  describe('switched-off services cue (UX-045)', () => {
+    it('shows a muted footer button naming how many services are off and asks for Settings on Services', async () => {
+      const c = mount(Sidebar, { props: { accounts, disabled: ['instagram', 'tiktok'] } })
+      const off = c.find('.foot .offs')
+      expect(off.exists()).toBe(true)
+      expect(off.text()).toBe('2 services off')
+      expect(off.attributes('title')).toBe('2 services off')
+      await off.trigger('click')
+      expect(c.emitted('settings')).toEqual([['Services']])
+    })
+
+    it('says one service for a single disabled service and shows nothing when all are on', () => {
+      const one = mount(Sidebar, { props: { accounts, disabled: ['instagram'] } })
+      expect(one.find('.foot .offs').text()).toBe('1 service off')
+      const none = mount(Sidebar, { props: { accounts, disabled: [] } })
+      expect(none.find('.foot .offs').exists()).toBe(false)
+    })
+
+    it('keeps an accessible label on the icon in the rail', () => {
+      const c = mount(Sidebar, { props: { accounts, disabled: ['instagram', 'tiktok'], collapsed: true } })
+      const off = c.find('.foot .offs')
+      expect(off.exists()).toBe(true)
+      expect(off.find('.offtxt').exists()).toBe(false)
+      expect(off.attributes('aria-label')).toBe('2 services off')
+    })
+  })
+
   it('shows GuiseDesk v<package.json version> in the footer in full mode only', () => {
     expect(version).toMatch(/^\d+\.\d+\.\d+$/)
     expect(w.find('.foot .ver').text()).toBe(`GuiseDesk v${version}`)
