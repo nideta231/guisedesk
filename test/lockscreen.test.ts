@@ -52,13 +52,17 @@ describe('LockScreen (PIN)', () => {
     expect(b.unlock).toHaveBeenCalledExactlyOnceWith('123456')
   })
 
-  it('wrong entry shakes and clears', async () => {
+  it('wrong entry shakes, clears and says it was wrong until the next digit', async () => {
     install()
     w = mount(LockScreen, { props: { kind: 'pin', pinLength: 6 } })
     for (const k of '111111') press(k)
     await flushPromises()
     expect(w.find('.lockv').classes()).toContain('shake')
     expect(w.findAll('.dots i.f')).toHaveLength(0)
+    expect(w.find('.wrong').text()).toBe('Wrong PIN. Try again.')
+    press('2')
+    await flushPromises()
+    expect(w.find('.wrong').exists()).toBe(false)
   })
 
   describe('wait', () => {
@@ -71,6 +75,7 @@ describe('LockScreen (PIN)', () => {
       for (const k of '111111') press(k)
       await flushPromises()
       expect(w.find('.wait').text()).toContain('30 s')
+      expect(w.find('.wrong').exists()).toBe(false)
       b.unlock.mockClear()
       for (const k of '222222') press(k)
       await flushPromises()
@@ -102,6 +107,17 @@ describe('LockScreen (PIN)', () => {
 })
 
 describe('LockScreen (password)', () => {
+  it('names a wrong password and clears the message when typing again', async () => {
+    install()
+    const w = mount(LockScreen, { props: { kind: 'password' } })
+    await w.find('input[type=password]').setValue('wrong-one')
+    await w.find('input[type=password]').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(w.find('.wrong').text()).toBe('Wrong password. Try again.')
+    await w.find('input[type=password]').setValue('another')
+    expect(w.find('.wrong').exists()).toBe(false)
+  })
+
   it('shows a field instead of the pad and submits on Enter', async () => {
     const b = install({ unlock: vi.fn(async () => ({ result: 'ok' })) })
     const w = mount(LockScreen, { props: { kind: 'password' } })

@@ -13,7 +13,24 @@ const now = ref(Date.now())
 const waiting = computed(() => until.value > now.value)
 const secs = computed(() => Math.max(1, Math.ceil((until.value - now.value) / 1000)))
 const length = computed(() => props.pinLength ?? 6)
+const errorText = ref('')
 let timer: ReturnType<typeof setInterval> | undefined
+let errorTimer: ReturnType<typeof setTimeout> | undefined
+
+function clearError() {
+  errorText.value = ''
+  if (errorTimer) {
+    clearTimeout(errorTimer)
+    errorTimer = undefined
+  }
+}
+
+// A wrong entry is named (UX-027) instead of only shaking; a wait result always replaces it.
+function showWrong() {
+  errorText.value = props.kind === 'pin' ? 'Wrong PIN. Try again.' : 'Wrong password. Try again.'
+  if (errorTimer) clearTimeout(errorTimer)
+  errorTimer = setTimeout(clearError, 4000)
+}
 
 function tick() {
   now.value = Date.now()
@@ -38,8 +55,11 @@ async function submit() {
     shake.value = true
     setTimeout(() => (shake.value = false), 400)
     if (r.result === 'wait') {
+      clearError()
       until.value = r.until
       startTimer()
+    } else {
+      showWrong()
     }
   } finally {
     busy.value = false
@@ -48,11 +68,15 @@ async function submit() {
 
 function digit(d: string) {
   if (busy.value || waiting.value || entry.value.length >= length.value) return
+  clearError()
   entry.value += d
   if (entry.value.length === length.value) void submit()
 }
 const del = () => {
-  if (!busy.value && !waiting.value) entry.value = entry.value.slice(0, -1)
+  if (!busy.value && !waiting.value) {
+    clearError()
+    entry.value = entry.value.slice(0, -1)
+  }
 }
 
 function onKey(e: KeyboardEvent) {
@@ -69,6 +93,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKey)
   if (timer) clearInterval(timer)
+  if (errorTimer) clearTimeout(errorTimer)
 })
 </script>
 
@@ -87,9 +112,10 @@ onBeforeUnmount(() => {
         </div>
       </template>
       <div v-else class="pw">
-        <input v-model="entry" class="inp" type="password" autofocus placeholder="Password" :disabled="waiting" aria-label="Password" @keydown.enter="submit" />
+        <input v-model="entry" class="inp" type="password" autofocus placeholder="Password" :disabled="waiting" aria-label="Password" @input="clearError" @keydown.enter="submit" />
         <div class="pwbtns"><button class="btn" @click="emit('forgot')">Forgot</button><button class="btn pri" :disabled="waiting" @click="submit">Unlock</button></div>
       </div>
+      <div v-if="errorText && !waiting" class="wrong" role="alert">{{ errorText }}</div>
       <div v-if="waiting" class="wait" role="status">Too many tries. Try again in {{ secs }} s</div>
     </div>
   </div>

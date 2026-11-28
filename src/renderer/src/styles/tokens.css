@@ -158,6 +158,7 @@ svg.i { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-widt
 .pad button.gh { border: none; font-size: 12px; font-weight: 700; color: var(--muted); }
 .pad button:disabled, .pw .btn:disabled, .pw .inp:disabled { opacity: 0.4; cursor: default; }
 .lockv .wait { margin-top: 22px; font-size: 12px; font-weight: 600; color: var(--accent); }
+.lockv .wrong { margin-top: 18px; font-size: 12px; font-weight: 600; color: var(--accent); }
 .lockv .pw { width: 280px; margin: 30px auto 0; }
 .lockv .pw .inp { text-align: center; margin-bottom: 12px; }
 .lockv .pwbtns { display: flex; justify-content: center; gap: 10px; }
