@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { flushSessionOnce, flushSessions, sessionKeys } from '../src/main/sessionlife'
+import { flushSessionOnce, flushSessions, flushThenClose, sessionKeys } from '../src/main/sessionlife'
 
 function fakeSession(order: string[]) {
   return {
@@ -52,5 +52,16 @@ describe('flushSessionOnce', () => {
     await flushSessionOnce(ses, seen)
     await flushSessionOnce(ses, seen)
     expect(order).toEqual(['storage', 'flush'])
+  })
+})
+
+describe('flushThenClose', () => {
+  it('flushes the view session before closing it and does not flush twice for one session', async () => {
+    const order: string[] = []
+    const view = { webContents: { session: fakeSession(order), close: () => { order.push('close') } } }
+    const seen = new WeakSet<object>()
+    await flushThenClose(view, seen)
+    await flushThenClose(view, seen)
+    expect(order).toEqual(['storage', 'flush', 'close', 'close'])
   })
 })

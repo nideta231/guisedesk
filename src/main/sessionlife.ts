@@ -48,3 +48,17 @@ export function flushSessions(keys: string[], sessionFor: (key: string) => Sessi
     void Promise.all(work).then(finish)
   })
 }
+
+export interface ViewLike {
+  webContents: { session: SessionLike; close(): void }
+}
+
+/** Flushes the view's session, then closes it. Fire-and-forget: the 60 s sleep sweep must not await it. */
+export function flushThenClose(view: ViewLike, seen: WeakSet<object> = new WeakSet()): Promise<void> {
+  const { session, close } = view.webContents
+  return flushSessionOnce(session, seen).then(() => {
+    try {
+      close()
+    } catch { /* the view was already closed elsewhere */ }
+  })
+}

@@ -54,7 +54,7 @@ import { backupFileName } from './backuprules'
 import { runBackupWorker } from './backupengine'
 import { addInbox, inboxItem, markAllRead, markRead, unreadCount, type InboxItem } from './inbox'
 import { loadInbox, saveInbox } from './inboxstore'
-import { flushSessions, sessionKeys } from './sessionlife'
+import { flushSessions, flushThenClose, sessionKeys } from './sessionlife'
 
 // Both must run before `ready`. setName first: it resets the default userData path, which setPath then overrides,
 // so sessions and partitions still land in the chosen dir. The name is what notifications and the tray show.
@@ -108,6 +108,8 @@ Menu.setApplicationMenu(null)
 const devTools = process.env.GUISEDESK_DEV === '1'
 
 const views = new Map<string, WebContentsView>()
+// A session is flushed once even if quit and sleep both touch it.
+const flushedSessions = new WeakSet<object>()
 let attached: WebContentsView | undefined
 // Split view (D62): the selected account stays `attached`; `second` is the side-by-side account.
 let second: WebContentsView | undefined
@@ -815,7 +817,8 @@ function sleepAccount(a: Account, minutes = limitMinutes(a) ?? 0): void {
   if (v) {
     owner.delete(v.webContents.id)
     views.delete(a.id)
-    v.webContents.close()
+    // A login or recent message written in the last seconds must reach the partition before the view goes.
+    void flushThenClose(v, flushedSessions)
   }
   sleepState[a.id] = { minutes, waking: false }
 }
