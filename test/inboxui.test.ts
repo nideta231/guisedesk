@@ -76,6 +76,16 @@ describe('Inbox dialog (D64)', () => {
     expect(w.emitted('select')).toBeUndefined()
   })
 
+  it('a row from a switched-off service keeps its label, says Service is off and asks for Settings (UX-042)', async () => {
+    const w = mount(Inbox, { props: { items, accounts, disabled: ['discord'] } })
+    const row = w.findAll('.item').find((r) => r.text().includes('Work'))!
+    expect(row.text()).toContain('Work')
+    expect(row.text()).toContain('Service is off')
+    await row.trigger('click')
+    expect(w.emitted('open-services')).toHaveLength(1)
+    expect(w.emitted('select')).toBeUndefined()
+  })
+
   it('closes on X, Esc and a click outside', async () => {
     const w = mount(Inbox, { props: { items, accounts }, attachTo: document.body })
     await w.find('.x').trigger('click')
@@ -240,5 +250,46 @@ describe('hidden sidebar keeps the inbox reachable (UX-004)', () => {
     const w = await app(0)
     expect(w.find('.sidestrip .bell').exists()).toBe(true)
     expect(w.find('.sidestrip .bell .badge').exists()).toBe(false)
+  })
+})
+
+describe('App inbox wiring for switched-off services (UX-042)', () => {
+  it('an item of a disabled service opens Settings > Services instead of selecting the account', async () => {
+    const select = vi.fn()
+    ;(window as unknown as { guisedesk: unknown }).guisedesk = {
+      lockState: async () => ({ state: 'unlocked' }),
+      onLock: () => {},
+      state: async () => ({ accounts, selectedId: 'a1', disabledServices: ['discord'] }),
+      unread: async () => ({}),
+      onUnread: () => {},
+      inbox: async () => ({ items, unread: 2 }),
+      inboxRead: vi.fn(async () => ({ items, unread: 2 })),
+      inboxReadAll: vi.fn(async () => ({ items, unread: 0 })),
+      inboxClear: vi.fn(async () => ({ items: [], unread: 0 })),
+      onInbox: () => {},
+      onSelected: () => {},
+      onOpenSettings: () => {},
+      sleep: async () => ({}),
+      onSleep: () => {},
+      select,
+      dialog: () => {},
+      onSidebar: () => {},
+      onZoom: () => {},
+      onLinkChoose: () => {},
+      onRowMenuPick: () => {},
+      onUpdate: () => {},
+      updateState: async () => ({ state: 'none' })
+    }
+    const w = mount(App)
+    await flushPromises()
+    await w.find('.foot .bell').trigger('click')
+    await flushPromises()
+    const row = w.findAll('.item').find((r) => r.text().includes('Work'))!
+    expect(row.text()).toContain('Service is off')
+    await row.trigger('click')
+    await flushPromises()
+    expect(select).not.toHaveBeenCalledWith('a2')
+    expect(w.find('.inbox').exists()).toBe(false)
+    expect(w.find('.tabs .sel').text()).toBe('Services')
   })
 })

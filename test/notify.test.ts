@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { decideNotification, quietOutsideWorkHours } from '../src/main/notify'
+import { decideNotification, notificationClickTarget, quietOutsideWorkHours } from '../src/main/notify'
 
 const event = {
   accountId: 'a1',
@@ -73,5 +73,12 @@ describe('quiet outside work hours (D58)', () => {
     expect(decideNotification(event, { quiet: true, muted: false }).action).toBe('drop')
     expect(decideNotification(event, { quiet: false }).action).toBe('full')
     expect(decideNotification(event, { quiet: true, locked: true })).toEqual({ action: 'drop' })
+  })
+})
+
+describe('notification click target (UX-042)', () => {
+  it('selects the account normally and asks for Settings > Services when its service is off', () => {
+    expect(notificationClickTarget(false)).toBe('select')
+    expect(notificationClickTarget(true)).toBe('services')
   })
 })

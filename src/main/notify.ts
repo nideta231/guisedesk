@@ -45,3 +45,8 @@ export function decideNotification(event: NotifyEvent, state: NotifyState): Noti
     icon: event.icon
   }
 }
+
+/** A native notification click selects the account, or opens Settings > Services when its service is off (UX-042). */
+export function notificationClickTarget(serviceDisabled: boolean): 'select' | 'services' {
+  return serviceDisabled ? 'services' : 'select'
+}

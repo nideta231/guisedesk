@@ -29,7 +29,7 @@ import { normalizeSchedule, type LockSchedule } from './schedule'
 import { applyBadge, parseUnread, totalUnread, updateWindowTitle, without } from './unread'
 import { createTray } from './tray'
 import { bulkTargets } from './traymenu'
-import { decideNotification, quietOutsideWorkHours } from './notify'
+import { decideNotification, notificationClickTarget, quietOutsideWorkHours } from './notify'
 import { applyPermissionPolicy } from './permissions'
 import { createHibernator, launchAsleep, limitMinutes } from './hibernate'
 import { createLock, isLockShortcut } from './lock'
@@ -2241,7 +2241,12 @@ function createWindow(): BrowserWindow {
   const selectFromNotification = (a: Account) => {
     win.show()
     win.focus()
-    if (!isUnlocked() || disabled.has(a.serviceId)) return // a click while locked only raises the window
+    if (!isUnlocked()) return // a click while locked only raises the window
+    // A switched-off service cannot open (UX-042): send the user to Settings > Services instead of doing nothing.
+    if (notificationClickTarget(disabled.has(a.serviceId)) === 'services') {
+      win.webContents.send('settings:open-tab', 'Services')
+      return
+    }
     selectedId = a.id
     saveSelected(dir, a.id)
     show(win, a, pushSleep)

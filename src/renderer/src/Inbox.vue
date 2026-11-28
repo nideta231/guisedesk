@@ -4,8 +4,8 @@ import { presetFor } from '../../main/presets'
 import { filterInbox, groupInbox, searchInbox, unreadCount } from '../../main/inbox'
 import { initials } from './initials'
 
-const props = defineProps<{ items: InboxItem[]; accounts: AccountRow[] }>()
-const emit = defineEmits<{ close: []; select: [accountId: string, itemId: string]; unread: [id: string]; 'read-all': []; clear: [] }>()
+const props = defineProps<{ items: InboxItem[]; accounts: AccountRow[]; disabled?: string[] }>()
+const emit = defineEmits<{ close: []; select: [accountId: string, itemId: string]; unread: [id: string]; 'read-all': []; clear: []; 'open-services': [] }>()
 
 const filter = ref('')
 const search = ref('')
@@ -27,6 +27,16 @@ const serviceOf = (id: string) => {
 }
 const colourOf = (id: string) => byId.value.get(id)?.colour ?? '#6d5bd0'
 const timeText = (time: number) => new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+// A switched-off service still has old items (UX-042): keep its name, say why a click cannot open it, and send the user
+// to Settings > Services instead of doing nothing.
+const serviceOff = (id: string) => {
+  const a = byId.value.get(id)
+  return !!a && !!props.disabled?.includes(a.serviceId)
+}
+function openItem(i: InboxItem) {
+  if (serviceOff(i.accountId)) emit('open-services')
+  else emit('select', i.accountId, i.id)
+}
 </script>
 
 <template>
@@ -53,15 +63,15 @@ const timeText = (time: number) => new Date(time).toLocaleTimeString([], { hour:
             :class="{ unread: !i.read }"
             role="button"
             tabindex="0"
-            @click="emit('select', i.accountId, i.id)"
-            @keydown.enter="emit('select', i.accountId, i.id)"
-            @keydown.space.prevent="emit('select', i.accountId, i.id)"
+            @click="openItem(i)"
+            @keydown.enter="openItem(i)"
+            @keydown.space.prevent="openItem(i)"
           >
             <button v-if="i.read" class="dot off" type="button" title="Mark unread" aria-label="Mark unread" @click.stop="emit('unread', i.id)"></button>
             <span v-else class="dot"></span>
             <span class="av" :style="{ background: colourOf(i.accountId) }">{{ initials(labelOf(i.accountId)) }}</span>
             <span class="content">
-              <span class="meta"><b>{{ labelOf(i.accountId) }}</b><small>{{ serviceOf(i.accountId) }}</small><span class="time">{{ timeText(i.time) }}</span></span>
+              <span class="meta"><b>{{ labelOf(i.accountId) }}</b><small>{{ serviceOf(i.accountId) }}</small><span v-if="serviceOff(i.accountId)" class="off">Service is off</span><span class="time">{{ timeText(i.time) }}</span></span>
               <span class="title">{{ i.title }}</span>
               <span v-if="i.body" class="body">{{ i.body }}</span>
             </span>
@@ -93,6 +103,7 @@ const timeText = (time: number) => new Date(time).toLocaleTimeString([], { hour:
 .meta b { font-weight: 700; }
 .meta small { color: var(--muted); font-size: 10.5px; }
 .meta .time { margin-left: auto; color: var(--dim); font-size: 10.5px; }
+.meta .off { font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
 .title { font-weight: 700; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .body { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .item:not(.unread) .title { font-weight: 600; color: var(--muted); }

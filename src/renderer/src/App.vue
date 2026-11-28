@@ -412,6 +412,14 @@ async function clearInbox() {
   if (box) inbox.value = box
 }
 
+// An item whose service was switched off (UX-042): lead to Settings > Services instead of a click that does nothing.
+function openServicesFromInbox() {
+  closeInbox()
+  settingsTab.value = undefined
+  openSettings()
+  void nextTick(() => (settingsTab.value = 'Services'))
+}
+
 function openSettings() {
   if (settingsOpen.value) return
   settingsOpen.value = true
@@ -559,7 +567,7 @@ async function add(input: Parameters<Window['guisedesk']['add']>[0]) {
     <LinkChooser v-if="choosing" :url="choosing.url" :candidates="choosing.candidates" @choose="chosen" />
     <AddAccount v-if="adding" :accounts="accounts" :server-error="addError" @add="add" @cancel="closeAdd" />
     <QuickSwitcher v-if="switcherOpen" :accounts="shown" @choose="pickSwitcher" @close="closeSwitcher" />
-    <Inbox v-if="inboxOpen" :items="inbox.items" :accounts="shown" @select="pickInbox" @unread="markInboxUnread" @read-all="readAllInbox" @clear="clearInbox" @close="closeInbox" />
+    <Inbox v-if="inboxOpen" :items="inbox.items" :accounts="accounts" :disabled="disabled" @select="pickInbox" @unread="markInboxUnread" @read-all="readAllInbox" @clear="clearInbox" @open-services="openServicesFromInbox" @close="closeInbox" />
     <ShortcutHelp v-if="helpOpen" @close="closeHelp" />
   </div>
 </template>
