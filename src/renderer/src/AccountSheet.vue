@@ -55,6 +55,7 @@ function onEditEsc(e: KeyboardEvent) {
 }
 
 const confirming = ref(false)
+const logoutConfirming = ref(false)
 const loggedOut = ref(false)
 // Shared login (D36): the host this account uses, or the others on this account's partition.
 const host = computed(() => (props.account.shareWith ? props.accounts?.find((a) => a.id === props.account.shareWith) : undefined))
@@ -98,6 +99,7 @@ function saveProxy() {
 }
 
 function logout() {
+  logoutConfirming.value = false
   loggedOut.value = true
   emit('logout')
 }
@@ -169,9 +171,13 @@ function logout() {
         <div class="err">Remove {{ account.label }}? Its login and saved data are deleted. This cannot be undone.</div>
         <div class="btns"><button class="btn" @click="confirming = false">Cancel</button><button class="btn dng" @click="emit('remove')">Remove</button></div>
       </div>
+      <div v-else-if="logoutConfirming" class="confirm logoutconfirm">
+        <div class="err">Log out {{ account.label }}? You will have to sign in again.</div>
+        <div class="btns"><button class="btn" @click="logoutConfirming = false">Cancel</button><button class="btn dng" @click="logout">Log out</button></div>
+      </div>
       <div v-else class="btns">
         <button class="btn dng rm" @click="confirming = true">Remove</button>
-        <button class="btn" @click="logout">Log out</button>
+        <button class="btn" @click="logoutConfirming = true">Log out</button>
         <button class="btn pri" @click="emit('done')">Done</button>
       </div>
     </div>

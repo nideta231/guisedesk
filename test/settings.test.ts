@@ -72,11 +72,19 @@ describe('AccountSheet', () => {
     expect(w.emitted('mute')![0]).toEqual([true])
   })
 
-  it('Log out emits logout; Done emits done', async () => {
+  it('Log out asks first; only the confirm emits logout, and Cancel keeps the account', async () => {
     const w = mount(AccountSheet, { props: { account: ig } })
-    await w.findAll('.btn').find((b) => b.text() === 'Log out')!.trigger('click')
+    const btn = (t: string) => w.findAll('.btn').find((b) => b.text() === t)!
+    await btn('Log out').trigger('click')
+    expect(w.emitted('logout')).toBeUndefined()
+    expect(w.find('.logoutconfirm').text()).toContain('Log out @shop? You will have to sign in again.')
+    await w.find('.logoutconfirm .btn').trigger('click')
+    expect(w.find('.logoutconfirm').exists()).toBe(false)
+    expect(w.emitted('logout')).toBeUndefined()
+    await btn('Log out').trigger('click')
+    await w.findAll('.logoutconfirm .btn')[1].trigger('click')
     expect(w.emitted('logout')).toHaveLength(1)
-    await w.findAll('.btn').find((b) => b.text() === 'Done')!.trigger('click')
+    await btn('Done').trigger('click')
     expect(w.emitted('done')).toHaveLength(1)
   })
 
@@ -180,6 +188,9 @@ describe('Settings in the app', () => {
     await w.find('.glass .tg').trigger('click')
     expect(bridge.mute).toHaveBeenCalledWith('ig1', true)
     await w.findAll('.glass .btn').find((b) => b.text() === 'Log out')!.trigger('click')
+    expect(bridge.logout).not.toHaveBeenCalled()
+    await w.find('.glass .logoutconfirm .btn.dng').trigger('click')
+    await flushPromises()
     expect(bridge.logout).toHaveBeenCalledWith('ig1')
     await w.findAll('.glass .btn').find((b) => b.text() === 'Done')!.trigger('click')
     expect(w.find('.glass').exists()).toBe(false)
