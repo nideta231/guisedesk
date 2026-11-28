@@ -7,9 +7,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AccountSheet from '../src/renderer/src/AccountSheet.vue'
 import App from '../src/renderer/src/App.vue'
 import Settings from '../src/renderer/src/Settings.vue'
+import SettingsGeneral from '../src/renderer/src/SettingsGeneral.vue'
 import SettingsServices from '../src/renderer/src/SettingsServices.vue'
 import { editAccount, loadAccounts, saveAccounts } from '../src/main/accounts'
 import { openAppTarget } from '../src/main/appopen'
+import { runQuit } from '../src/main/appquit'
 
 const acc = (id: string, serviceId: string, label: string, order: number, extra = {}) => ({ id, serviceId, label, colour: '#6d5bd0', order, ...extra })
 const accounts = [
@@ -382,5 +384,32 @@ describe('app:open handler (UX-007)', () => {
     const a = io()
     a.openPath = vi.fn(async () => 'Permission denied')
     expect(await openAppTarget('data', true, a)).toBe(false)
+  })
+})
+
+describe('Settings > General Quit (UX-031)', () => {
+  it('shows a Quit button with the tray hint and calls quit once', async () => {
+    const quit = vi.fn(async () => true)
+    ;(window as unknown as { guisedesk: unknown }).guisedesk = {
+      prefs: async () => ({ startOnLogin: false }),
+      downloads: async () => ({ dir: '/dl', ask: false }),
+      blocking: async () => ({ ads: false, popups: true }),
+      quit
+    }
+    const w = mount(SettingsGeneral, { props: { update: { state: 'none' } } })
+    await flushPromises()
+    const card = w.findAll('.card').find((c) => c.find('h4').text() === 'Quit')!
+    expect(card.exists()).toBe(true)
+    expect(card.text()).toContain('Closing the window only hides it to the tray.')
+    await card.find('.btn.dng').trigger('click')
+    expect(quit).toHaveBeenCalledOnce()
+  })
+
+  it('the main quit helper refuses a non-app sender and quits once for the app window', () => {
+    const quit = vi.fn()
+    expect(runQuit(false, quit)).toBe(false)
+    expect(quit).not.toHaveBeenCalled()
+    expect(runQuit(true, quit)).toBe(true)
+    expect(quit).toHaveBeenCalledOnce()
   })
 })

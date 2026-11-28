@@ -65,6 +65,11 @@ function showLog() {
   void window.guisedesk.showEventLog()
 }
 
+// Quit (UX-031): closing the window only hides it to the tray, so a real Quit lives here too.
+function quitApp() {
+  void window.guisedesk.quit()
+}
+
 const backupMode = ref<'export' | 'restore' | undefined>()
 </script>
 
@@ -135,6 +140,13 @@ const backupMode = ref<'export' | 'restore' | undefined>()
         <button class="btn" :disabled="update.state === 'checking'" @click="emit('check')">Check for updates</button>
         <span v-if="custom" class="hint">Updates are off for a custom build</span>
         <button v-else-if="update.state === 'available'" class="btn pri" @click="emit('apply')">Update and restart</button>
+      </div>
+    </div>
+    <div class="card">
+      <h4>Quit</h4>
+      <div class="sr">
+        <span class="t"><b>Quit GuiseDesk</b><span>Closing the window only hides it to the tray.</span></span>
+        <button class="btn dng" @click="quitApp">Quit GuiseDesk</button>
       </div>
     </div>
     <BackupDialog v-if="backupMode" :mode="backupMode" @close="backupMode = undefined" />

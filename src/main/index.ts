@@ -60,6 +60,7 @@ import { onceMainFrameSettled } from './mainframe'
 import { isReportableLoadError, shouldClearErrorOnFinish, shouldClearErrorOnStart, shouldReattachOnLoad } from './pageerror'
 import { goBack, goForward, navState } from './nav'
 import { openAppTarget } from './appopen'
+import { runQuit } from './appquit'
 import { watchViewHealth } from './viewhealth'
 
 // Both must run before `ready`. setName first: it resets the default userData path, which setPath then overrides,
@@ -1234,6 +1235,8 @@ function createWindow(): BrowserWindow {
     app.quit()
     return true
   })
+  // Settings > General Quit (UX-031): really quit; only the app window may ask.
+  gipc.handle('app:quit', (e: { sender: { id: number } }) => runQuit(fromApp(e), () => app.quit()))
   // Settings > General "About and data" (UX-007): open the data folder or show events.log, only for the app window.
   gipc.handle('app:open', (e: { sender: { id: number } }, target: unknown) =>
     openAppTarget(target, fromApp(e), {

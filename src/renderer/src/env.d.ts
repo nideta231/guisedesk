@@ -265,6 +265,8 @@ interface Window {
     /** Settings > General "About and data" (UX-007): open the data folder or show events.log. */
     openDataFolder(): Promise<boolean>
     showEventLog(): Promise<boolean>
+    /** Settings > General Quit (UX-031): really quits; closing the window only hides it to the tray. */
+    quit(): Promise<boolean>
     /** Downloads (D31): the folder in use (the system Downloads dir by default) and the ask switch; pick opens a folder picker and saves it. */
     downloads(): Promise<{ dir: string; ask: boolean }>
     setDownloadsAsk(ask: boolean): Promise<boolean>
