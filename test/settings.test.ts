@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AccountSheet from '../src/renderer/src/AccountSheet.vue'
 import App from '../src/renderer/src/App.vue'
 import SettingsServices from '../src/renderer/src/SettingsServices.vue'
+import { editAccount, loadAccounts, saveAccounts } from '../src/main/accounts'
 
 const acc = (id: string, serviceId: string, label: string, order: number, extra = {}) => ({ id, serviceId, label, colour: '#6d5bd0', order, ...extra })
 const accounts = [
@@ -80,7 +84,7 @@ describe('AccountSheet', () => {
     await btn('Remove').trigger('click')
     expect(w.emitted('remove')).toBeUndefined()
     expect(w.find('.confirm').text()).toContain('@shop')
-    await btn('Cancel').trigger('click')
+    await w.find('.confirm .btn').trigger('click')
     expect(w.find('.confirm').exists()).toBe(false)
     await btn('Remove').trigger('click')
     await btn('Remove').trigger('click')
@@ -118,6 +122,11 @@ describe('Settings in the app', () => {
       mute: vi.fn(async () => snap([])),
       setServiceEnabled: vi.fn(async (_id: string, on: boolean) => snap(on ? [] : ['whatsapp'])),
       setPolicy: vi.fn(async () => snap([])),
+      edit: vi.fn(async (v: { id: string; label: string; colour: string }) => ({
+        accounts: accounts.map((a) => (a.id === v.id ? { ...a, label: v.label, colour: v.colour } : a)),
+        selectedId: 'wa1',
+        disabledServices: []
+      })),
       logout: vi.fn(async () => snap([])),
       remove: vi.fn(async () => ({ accounts: accounts.slice(1), selectedId: 'wa2', disabledServices: [] }))
     }
@@ -169,6 +178,19 @@ describe('Settings in the app', () => {
     expect(w.find('.glass').exists()).toBe(false)
   })
 
+  it('saving the sheet header renames and recolours the account once and the header follows', async () => {
+    const w = await open()
+    await w.findAll('.ar').find((r) => r.text().includes('@shop'))!.trigger('click')
+    await w.find('.glass .editlabel').setValue('  Boutique  ')
+    await w.findAll('.glass .editcolours i').find((c) => c.attributes('data-colour') === '#2b8a6e')!.trigger('click')
+    await w.findAll('.glass .editbtns .btn')[1].trigger('click')
+    await flushPromises()
+    const edit = bridge.edit as ReturnType<typeof vi.fn>
+    expect(edit).toHaveBeenCalledOnce()
+    expect(edit.mock.calls[0][0]).toEqual({ id: 'ig1', label: 'Boutique', colour: '#2b8a6e' })
+    expect(w.find('.glass h3').text()).toBe('Boutique')
+  })
+
   it('Remove after confirm drops the account from the list and closes the sheet', async () => {
     const w = await open()
     await w.findAll('.ar').find((r) => r.text().includes('Personal'))!.trigger('click')
@@ -201,5 +223,53 @@ describe('Settings in the app', () => {
     openSettings()
     await flushPromises()
     expect(w.find('.tabs').exists()).toBe(false)
+  })
+})
+
+describe('account rename and colour (UX-016)', () => {
+  const ig = acc('ig1', 'instagram', '@shop', 3)
+
+  it('saves a trimmed label and the picked colour once, and the header follows it', async () => {
+    const w = mount(AccountSheet, { props: { account: ig } })
+    await w.find('.editlabel').setValue('  Boutique  ')
+    await w.find('.editcolours i[data-colour="#2b8a6e"]').trigger('click')
+    await w.find('.editbtns .btn.pri').trigger('click')
+    expect(w.emitted('edit')).toEqual([['Boutique', '#2b8a6e']])
+  })
+
+  it('an empty label shows an error and emits nothing', async () => {
+    const w = mount(AccountSheet, { props: { account: ig } })
+    await w.find('.editlabel').setValue('   ')
+    await w.find('.editbtns .btn.pri').trigger('click')
+    expect(w.find('.err').text()).toBe('Label is required')
+    expect(w.emitted('edit')).toBeUndefined()
+  })
+
+  it('Cancel and Esc put the saved name and colour back', async () => {
+    const w = mount(AccountSheet, { props: { account: ig } })
+    const input = w.find('.editlabel')
+    const colours = w.findAll('.editcolours i')
+    await input.setValue('Typo')
+    await w.findAll('.editbtns .btn')[0].trigger('click')
+    expect((input.element as HTMLInputElement).value).toBe('@shop')
+
+    await input.setValue('Other')
+    await colours.find((c) => c.attributes('data-colour') === '#c7772a')!.trigger('click')
+    await w.find('.glass').trigger('keydown', { key: 'Escape' })
+    expect((input.element as HTMLInputElement).value).toBe('@shop')
+    expect(w.findAll('.editcolours i').find((c) => c.classes().includes('sel'))!.attributes('data-colour')).toBe('#6d5bd0')
+  })
+
+  it('the main edit helper ignores an unknown id, an empty label and a bad colour', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gd-edit-'))
+    saveAccounts(dir, [{ id: 'a1', serviceId: 'instagram', label: 'Old', colour: '#6d5bd0', order: 0 }])
+    expect(editAccount(dir, 'nope', 'New', '#123456').changed).toBe(false)
+    expect(editAccount(dir, 'a1', '   ', '#123456').changed).toBe(false)
+    expect(editAccount(dir, 'a1', 'New', 'red').changed).toBe(false)
+    expect(loadAccounts(dir)[0]).toMatchObject({ label: 'Old', colour: '#6d5bd0' })
+
+    expect(editAccount(dir, 'a1', '  New  ', '#ABCDEF').changed).toBe(true)
+    expect(loadAccounts(dir)[0]).toMatchObject({ label: 'New', colour: '#abcdef' })
+    rmSync(dir, { recursive: true, force: true })
   })
 })

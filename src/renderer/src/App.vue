@@ -447,6 +447,10 @@ async function setPolicy(id: string, policy: string) {
   take(await window.guisedesk.setPolicy(id, policy))
 }
 
+async function editAccount(id: string, label: string, colour: string) {
+  take(await window.guisedesk.edit({ id, label, colour }))
+}
+
 async function logout(id: string) {
   take(await window.guisedesk.logout(id))
 }
@@ -535,6 +539,7 @@ async function add(input: Parameters<Window['guisedesk']['add']>[0]) {
       @blur-part="(part, on) => setBlurPart(sheetAccount!.id, part, on)"
       @keep-deleted="(on) => setKeepDeleted(sheetAccount!.id, on)"
       @proxy="(v) => setProxy(sheetAccount!.id, v)"
+      @edit="(label, colour) => editAccount(sheetAccount!.id, label, colour)"
       @logout="logout(sheetAccount!.id)"
       @remove="removeAccount(sheetAccount!.id)"
       @done="sheetId = undefined"

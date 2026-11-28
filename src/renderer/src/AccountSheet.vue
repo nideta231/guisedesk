@@ -17,7 +17,42 @@ const props = defineProps<{
   /** A save error from main (the address itself is checked here first). */
   proxyError?: string
 }>()
-const emit = defineEmits<{ policy: [value: string]; mute: [muted: boolean]; blur: [on: boolean]; blurPart: [part: string, on: boolean]; keepDeleted: [on: boolean]; proxy: [value: string]; logout: []; remove: []; done: [] }>()
+const emit = defineEmits<{ policy: [value: string]; mute: [muted: boolean]; blur: [on: boolean]; blurPart: [part: string, on: boolean]; keepDeleted: [on: boolean]; proxy: [value: string]; edit: [label: string, colour: string]; logout: []; remove: []; done: [] }>()
+
+// Name and colour (UX-016): the header drafts a change; Save sends it, Cancel/Esc put the saved values back.
+const COLOURS = ['#6d5bd0', '#c7772a', '#2f7fb6', '#2b8a6e', '#b04c7a', '#4a5bc4']
+const labelDraft = ref(props.account.label)
+const colourDraft = ref(props.account.colour)
+const editError = ref('')
+const dirty = computed(() => labelDraft.value.trim() !== props.account.label || colourDraft.value !== props.account.colour)
+watch(
+  () => [props.account.label, props.account.colour],
+  () => {
+    labelDraft.value = props.account.label
+    colourDraft.value = props.account.colour
+    editError.value = ''
+  }
+)
+function cancelEdit() {
+  labelDraft.value = props.account.label
+  colourDraft.value = props.account.colour
+  editError.value = ''
+}
+function saveEdit() {
+  const label = labelDraft.value.trim()
+  if (!label) {
+    editError.value = 'Label is required'
+    return
+  }
+  editError.value = ''
+  emit('edit', label, colourDraft.value)
+}
+// Esc on the sheet puts unsaved header changes back; with nothing to undo it closes the sheet through App.
+function onEditEsc(e: KeyboardEvent) {
+  if (!dirty.value && !editError.value) return
+  e.stopPropagation()
+  cancelEdit()
+}
 
 const confirming = ref(false)
 const loggedOut = ref(false)
@@ -70,11 +105,23 @@ function logout() {
 
 <template>
   <div class="veil" @click.self="emit('done')">
-    <div class="glass sheet" role="dialog" :aria-label="`${account.label} settings`">
+    <div class="glass sheet" role="dialog" :aria-label="`${account.label} settings`" @keydown.esc="onEditEsc">
       <button class="ib x" title="Close (Esc)" aria-label="Close" @click="emit('done')"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
       <div class="sh">
-        <span class="av big" :style="{ background: account.colour }">{{ initials(account.label) }}<span class="svc" :style="logoStyle(account.serviceId)"><LogoGlyph :service-id="account.serviceId" :icon="account.custom?.icon" /></span></span>
-        <div><h3>{{ account.label }}</h3><div class="hint">{{ serviceName() }} account</div></div>
+        <span class="av big" :style="{ background: colourDraft }">{{ initials(labelDraft) }}<span class="svc" :style="logoStyle(account.serviceId)"><LogoGlyph :service-id="account.serviceId" :icon="account.custom?.icon" /></span></span>
+        <div class="shbody">
+          <h3>{{ account.label }}</h3>
+          <div class="hint">{{ serviceName() }} account</div>
+          <input v-model="labelDraft" class="inp editlabel" aria-label="Account name" placeholder="Account name" @keydown.enter="saveEdit" />
+          <div class="sw editcolours">
+            <i v-for="c in COLOURS" :key="c" :class="{ sel: c === colourDraft }" :style="{ background: c }" :data-colour="c" @click="colourDraft = c"></i>
+          </div>
+          <div v-if="editError" class="err">{{ editError }}</div>
+          <div class="editbtns">
+            <button class="btn" :disabled="!dirty" @click="cancelEdit">Cancel</button>
+            <button class="btn pri" :disabled="!dirty" @click="saveEdit">Save</button>
+          </div>
+        </div>
       </div>
       <div class="lbl">When not in use</div>
       <div class="seg">
@@ -132,6 +179,14 @@ function logout() {
 </template>
 
 <style scoped>
+/* Rename and recolour (UX-016): a compact form under the avatar. */
+.shbody { flex: 1; min-width: 0; }
+.shbody .editlabel { height: 32px; margin: 8px 0; }
+.shbody .editcolours { gap: 8px; margin: 0 0 8px; }
+.shbody .editcolours i { width: 20px; height: 20px; }
+.shbody .editbtns { display: flex; gap: 8px; }
+.shbody .editbtns .btn { height: 28px; padding: 0 10px; font-size: 12px; }
+.shbody .editbtns .btn:disabled { opacity: .4; cursor: default; }
 /* Network mode (D63): its own class so the sleep choice list keeps its existing shape. */
 .pseg { display: flex; padding: 3px; gap: 2px; margin-bottom: 14px; border-radius: 8px; border: 1px solid #ffffff18; overflow: hidden; }
 .pseg span { padding: 4px 8px; border-radius: 6px; flex: auto; text-align: center; white-space: nowrap; font-size: 12px; font-weight: 700; color: var(--muted); cursor: pointer; }

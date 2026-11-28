@@ -125,6 +125,24 @@ export function saveSelected(dir: string, id: string): void {
   updateSettings(dir, { selectedAccount: id })
 }
 
+/** Account colours are plain six-digit CSS hex values (UX-016). */
+export const HEX_COLOUR = /^#[0-9a-f]{6}$/i
+
+/**
+ * Renames and recolours an existing account (UX-016). An empty label, a colour that is not #rrggbb or an unknown id
+ * leaves accounts.json untouched; `changed` says whether it was written.
+ */
+export function editAccount(dir: string, id: unknown, label: unknown, colour: unknown): { changed: boolean; accounts: Account[] } {
+  const accounts = loadAccounts(dir)
+  const clean = typeof label === 'string' ? label.trim() : ''
+  if (!clean || typeof colour !== 'string' || !HEX_COLOUR.test(colour) || typeof id !== 'string' || !accounts.some((a) => a.id === id)) {
+    return { changed: false, accounts }
+  }
+  const next = accounts.map((a) => (a.id === id ? { ...a, label: clean, colour: colour.toLowerCase() } : a))
+  saveAccounts(dir, next)
+  return { changed: true, accounts: next }
+}
+
 /** Sets one account's muted flag (D19) and returns the saved list. */
 export function setMuted(dir: string, id: string, muted: boolean): Account[] {
   const accounts = loadAccounts(dir).map((a) => (a.id === id ? { ...a, muted } : a))

@@ -5,7 +5,7 @@ import { homedir, tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, Notification, nativeImage, powerMonitor, session, shell, WebContentsView } from 'electron'
 import { appRoot, dataDir, devUnlocked } from './paths'
-import { addAccount, IDLE_POLICIES, loadAccounts, loadDisabled, loadDnd, loadIdleMinutes, loadProxyAuth, loadQuietWorkHours, loadSchedule, loadSplit, saveProxyAuth, saveSchedule, saveSplit, saveQuietWorkHours, loadSelected, loadSidebarCollapsed, saveSidebarCollapsed, loadSidebarLayout, saveSidebarLayout, orderedAccounts, saveDnd, saveSelected, setAccountProxy, setIdlePolicy, reorderAccounts, setMuted, setBlurMedia, setBlurPart, setKeepDeleted, setExtensions, setServiceEnabled, setZoom, type Account, type SplitState } from './accounts'
+import { addAccount, editAccount, IDLE_POLICIES, loadAccounts, loadDisabled, loadDnd, loadIdleMinutes, loadProxyAuth, loadQuietWorkHours, loadSchedule, loadSplit, saveProxyAuth, saveSchedule, saveSplit, saveQuietWorkHours, loadSelected, loadSidebarCollapsed, saveSidebarCollapsed, loadSidebarLayout, saveSidebarLayout, orderedAccounts, saveDnd, saveSelected, setAccountProxy, setIdlePolicy, reorderAccounts, setMuted, setBlurMedia, setBlurPart, setKeepDeleted, setExtensions, setServiceEnabled, setZoom, type Account, type SplitState } from './accounts'
 import { logOut, removeAccount } from './accountops'
 import { overlay } from './composite'
 import { cacheFavicon, readIcon, type Fetcher } from './favicon'
@@ -2072,6 +2072,14 @@ function createWindow(): BrowserWindow {
     keeperDown.delete(id)
     // The script is injected at page load, so a change takes effect with a reload.
     if (v && !v.webContents.isDestroyed()) v.webContents.reload()
+    return snapshot()
+  })
+  // Rename and recolour an existing account (UX-016): a bad id or value changes nothing.
+  gipc.handle('accounts:edit', (e: { sender: { id: number } }, input: unknown) => {
+    if (!fromApp(e) || !input || typeof input !== 'object') return snapshot()
+    const { id, label, colour } = input as { id?: unknown; label?: unknown; colour?: unknown }
+    const r = editAccount(dir, id, label, colour)
+    if (r.changed) accounts = orderedAccounts(r.accounts)
     return snapshot()
   })
   gipc.handle('accounts:add', async (e: { sender: { id: number } }, input: any) => {

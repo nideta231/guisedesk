@@ -281,5 +281,7 @@ interface Window {
       shareWith?: string
       custom?: { name: string; url: string }
     }): Promise<Snapshot | { error: string }>
+    /** Rename and recolour an existing account (UX-016). */
+    edit(input: { id: string; label: string; colour: string }): Promise<Snapshot>
   }
 }

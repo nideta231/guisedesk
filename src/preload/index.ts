@@ -213,6 +213,7 @@ if (service) {
   shieldMenu: (id: string) => ipcRenderer.send('block:menu', id),
   onOpenSettingsTab: (cb: (tab: string) => void) => listen('settings:open-tab', cb),
   add: (input: unknown) => ipcRenderer.invoke('accounts:add', input),
+  edit: (input: { id: string; label: string; colour: string }) => ipcRenderer.invoke('accounts:edit', input),
   onLinkChoose: (cb: (r: unknown) => void) => listen('links:choose', cb),
   chooseLink: (id: number, choice: string | null) => ipcRenderer.send('links:chosen', id, choice),
   onSelected: (cb: (id: string) => void) => listen('accounts:selected', cb)
