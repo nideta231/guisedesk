@@ -55,6 +55,7 @@ import { runBackupWorker } from './backupengine'
 import { addInbox, inboxItem, markAllRead, markRead, unreadCount, type InboxItem } from './inbox'
 import { createInboxSaver, loadInbox, saveInbox } from './inboxstore'
 import { flushSessions, flushThenClose, sessionKeys } from './sessionlife'
+import { createLoginScheduler } from './logincheck'
 import { onceMainFrameSettled } from './mainframe'
 import { watchViewHealth } from './viewhealth'
 
@@ -2138,10 +2139,11 @@ async function whatsappPage(wc: Electron.WebContents): Promise<WaPage | undefine
 
 /** One login check at a time: a load and the start timer can both ask, and the file must not be written twice at once. */
 let loginCheckQueue: Promise<void> = Promise.resolve()
+const loginScheduler = createLoginScheduler(() => {
+  loginCheckQueue = loginCheckQueue.then(checkLogins).catch(() => {})
+})
 function scheduleLoginCheck(delay: number): void {
-  setTimeout(() => {
-    loginCheckQueue = loginCheckQueue.then(checkLogins).catch(() => {})
-  }, delay).unref()
+  loginScheduler.schedule(delay)
 }
 
 /**
