@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import AddAccount from './AddAccount.vue'
 import AccountSheet from './AccountSheet.vue'
 import AsleepPanel from './AsleepPanel.vue'
+import BrandMark from './BrandMark.vue'
 import Inbox from './Inbox.vue'
 import LinkChooser from './LinkChooser.vue'
 import LockScreen from './LockScreen.vue'
@@ -470,6 +471,22 @@ async function add(input: Parameters<Window['guisedesk']['add']>[0]) {
       <TopBar v-if="!settingsOpen && current" :account="current" :asleep="!!sleep[current.id]" :lock="lockChip" :proxy="current.proxy" :split="!!split" @lock-menu="openLockMenu" @proxy-menu="openProxyMenu(current!.id)" @reload="reload(current!.id)" @mute="(m) => mute(current!.id, m)" @lock="lockNow" @sleep="sleepNow(current!.id)" @settings="openSheet(current.id)" @reset-zoom="resetZoom(current!.id)" :ads-on="block.ads" :blocked="block.accounts[current.id]?.blocked ?? 0" :popup="block.accounts[current.id]?.popup" @open-popup="openBlockedPopup(current!.id)" @shield="shieldMenu(current!.id)" @extensions="extensionMenu(current!.id)" @split-menu="openSplitMenu" @close-split="closeSplit" />
       <Settings v-if="settingsOpen" :accounts="accounts" :disabled="disabled" :update="update" :tab="settingsTab" @check="checkUpdate" @apply="applyUpdate" @back="closeSettings" @toggle="toggleService" @open="(id) => (sheetId = id)" @unmute="(id) => mute(id, false)" @reset="resetting = true" @shortcuts="openHelp" />
       <AsleepPanel v-else-if="sleeping" :account="sleeping" :minutes="sleep[sleeping.id].minutes" @wake="select(sleeping.id)" />
+      <div v-else-if="!accounts.length" class="panel empty">
+        <div>
+          <BrandMark :size="64" />
+          <h3>No accounts yet</h3>
+          <p class="hint">Each account gets its own sealed session.</p>
+          <button class="btn pri" @click="openAdd">Add your first account</button>
+        </div>
+      </div>
+      <div v-else-if="!shown.length" class="panel empty">
+        <div>
+          <BrandMark :size="64" />
+          <h3>Every service is switched off</h3>
+          <p class="hint">Switch a service back on in Settings to see its accounts.</p>
+          <button class="btn" @click="openSettings">Open Settings</button>
+        </div>
+      </div>
       <div v-else class="panel"><SplitDivider v-if="split" :ratio="split.ratio" @move="moveSplit" @end="endSplitDrag" /></div>
     </main>
     <AccountSheet
@@ -494,3 +511,9 @@ async function add(input: Parameters<Window['guisedesk']['add']>[0]) {
     <ShortcutHelp v-if="helpOpen" @close="closeHelp" />
   </div>
 </template>
+
+<style scoped>
+.empty { display: grid; place-items: center; text-align: center; }
+.empty h3 { margin: 16px 0 6px; font-size: 18px; font-weight: 800; }
+.empty .hint { margin: 0 0 18px; }
+</style>
