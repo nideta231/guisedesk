@@ -111,7 +111,7 @@ describe('SettingsNotifications', () => {
   ]
   it('the DND switch reflects and sets Do Not Disturb, and follows the tray', async () => {
     let tray: (on: boolean) => void = () => {}
-    install({ prefs: vi.fn(async () => ({ idleLock: 10, dnd: true, startOnLogin: false })), onDnd: vi.fn((cb) => (tray = cb)) })
+    install({ prefs: vi.fn(async () => ({ idleLock: 10, dnd: true, startOnLogin: false })), onDnd: vi.fn((cb) => { tray = cb }) })
     const w = mount(SettingsNotifications, { props: { accounts: acc } })
     await flushPromises()
     expect(w.find('.tg').classes()).toContain('on')
@@ -122,6 +122,29 @@ describe('SettingsNotifications', () => {
     tray(true)
     await flushPromises()
     expect(w.find('.tg').classes()).toContain('on')
+  })
+
+  it('removes the DND listener on unmount, so only the live tab follows a later tray push', async () => {
+    type Cb = (on: boolean) => void
+    const live = new Set<Cb>()
+    const dispose = vi.fn((cb: Cb) => live.delete(cb))
+    install({ onDnd: vi.fn((cb: Cb) => { live.add(cb); return () => dispose(cb) }) })
+    const first = mount(SettingsNotifications, { props: { accounts: acc } })
+    await flushPromises()
+    first.unmount()
+    const second = mount(SettingsNotifications, { props: { accounts: acc } })
+    await flushPromises()
+    second.unmount()
+    expect(dispose).toHaveBeenCalledTimes(2)
+    expect(live.size).toBe(0)
+    const third = mount(SettingsNotifications, { props: { accounts: acc } })
+    await flushPromises()
+    expect(live.size).toBe(1)
+    for (const cb of live) cb(true)
+    await flushPromises()
+    expect(third.find('[aria-label="Do Not Disturb"]').classes()).toContain('on')
+    third.unmount()
+    expect(dispose).toHaveBeenCalledTimes(3)
   })
 
   it('lists only muted accounts, each with Unmute that emits unmute', async () => {

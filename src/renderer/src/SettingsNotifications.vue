@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { initials } from './initials'
 
 const props = defineProps<{ accounts: AccountRow[] }>()
@@ -8,13 +8,15 @@ const dnd = ref(false)
 const quiet = ref(false)
 const muted = computed(() => props.accounts.filter((a) => a.muted))
 
+let offDnd: Unsubscribe = () => {}
 onMounted(async () => {
   const p = await window.guisedesk.prefs()
   dnd.value = p.dnd
   quiet.value = !!p.quietWorkHours
   // The tray checkbox changes the same setting.
-  window.guisedesk.onDnd((on) => (dnd.value = on))
+  offDnd = window.guisedesk.onDnd((on) => (dnd.value = on))
 })
+onBeforeUnmount(() => offDnd?.())
 
 async function toggle() {
   const on = !dnd.value
