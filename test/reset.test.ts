@@ -61,6 +61,13 @@ describe('reset', () => {
     expect(settings).toMatchObject({ idleLock: 5, dnd: true, quietWorkHours: true })
   })
 
+  it('removes the login record so the next start has no former accounts to compare', () => {
+    const { dir } = fixture()
+    writeFileSync(join(dir, 'logins.json'), '{"ig1":"2026-01-01"}')
+    expect(resetData(dir, 'RESET')).toEqual({ ok: true })
+    expect(existsSync(join(dir, 'logins.json'))).toBe(false)
+  })
+
   it('works on a data dir that has none of those yet', () => {
     const dir = mkdtempSync(join(tmpdir(), 'gd-reset-empty-'))
     expect(resetData(dir, 'RESET')).toEqual({ ok: true })

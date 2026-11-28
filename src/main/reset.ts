@@ -39,10 +39,10 @@ export function wipeFiles(dir: string, targets: string[]): void {
   for (const t of targets) rmSync(resolve(t), { recursive: true, force: true })
 }
 
-/** After RESET is typed: remove accounts.json, lock.json, cached icons and the partition dirs; keep non-account settings. */
+/** After RESET is typed: remove accounts.json, logins.json, lock.json, cached icons and the partition dirs; keep non-account settings. */
 export function resetData(dir: string, typed: unknown): { ok: true } | { error: string } {
   if (typed !== RESET_WORD) return { error: `Type ${RESET_WORD} to confirm` }
-  wipeFiles(dir, [join(dir, 'accounts.json'), join(dir, 'lock.json'), join(dir, 'icons'), join(dir, 'Partitions')])
+  wipeFiles(dir, [join(dir, 'accounts.json'), join(dir, 'logins.json'), join(dir, 'lock.json'), join(dir, 'icons'), join(dir, 'Partitions')])
   clearAccountSettings(dir)
   return { ok: true }
 }
