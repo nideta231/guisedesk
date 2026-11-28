@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { kindOf, presetFor } from '../../main/presets'
 import BrandMark from './BrandMark.vue'
 import LogoGlyph from './LogoGlyph.vue'
@@ -76,13 +76,15 @@ const tip = (a: Acc) => (props.collapsed ? `${a.label} · ${serviceName(a)}` : u
 
 // Right-click menu (D19, D27, D41): main pops up a native menu (it must draw over the service view) and sends the pick back.
 const openCtx = (_e: MouseEvent, a: Acc) => window.guisedesk.rowMenu(a.id)
-onMounted(() =>
-  window.guisedesk.onRowMenuPick(({ id, action }) => {
+let offRowMenu: Unsubscribe = () => {}
+onMounted(() => {
+  offRowMenu = window.guisedesk.onRowMenuPick(({ id, action }) => {
     if (action === 'mute') emit('mute', id, !props.accounts.find((a) => a.id === id)?.muted)
     else if (action === 'sleep') emit('sleep', id)
     else if (action === 'account') emit('account', id)
   })
-)
+})
+onBeforeUnmount(() => offRowMenu?.())
 </script>
 
 <template>

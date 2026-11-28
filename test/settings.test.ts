@@ -109,7 +109,7 @@ describe('Settings in the app', () => {
       rowMenu: vi.fn(),
       onZoom: vi.fn(),
       onLinkChoose: () => {},
-      onRowMenuPick: vi.fn((cb) => (rowPick = cb)),
+      onRowMenuPick: vi.fn((cb) => { rowPick = cb }),
       onUpdate: () => {},
       updateState: async () => ({ state: 'none' }),
       onOpenSettings: vi.fn((cb) => (openSettings = cb)),

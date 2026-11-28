@@ -9,6 +9,13 @@ import { parseWakeepHint, wakeepScript } from './wakeep'
 // Service views (flagged by main with --gd-service) get only a notification shim; the app bridge is not exposed to them.
 const service = process.argv.includes('--gd-service')
 
+/** Registers a listener and returns the function that removes it again, so a component can clean up on unmount. */
+function listen<T extends unknown[]>(channel: string, cb: (...args: T) => void): () => void {
+  const listener = (_e: Electron.IpcRendererEvent, ...args: unknown[]) => cb(...(args as T))
+  ipcRenderer.on(channel, listener)
+  return () => ipcRenderer.removeListener(channel, listener)
+}
+
 /** Runs in the page's main world: replaces window.Notification and the page-side showNotification. */
 const SHIM = `(() => {
   const send = window.__gdNotify
@@ -113,7 +120,7 @@ if (service) {
   }
 } else contextBridge.exposeInMainWorld('guisedesk', {
   lockState: () => ipcRenderer.invoke('lock:state'),
-  onLock: (cb: (info: unknown) => void) => ipcRenderer.on('lock:changed', (_e, info) => cb(info)),
+  onLock: (cb: (info: unknown) => void) => listen('lock:changed', cb),
   unlock: (entry: string) => ipcRenderer.invoke('lock:unlock', entry),
   setupLock: (kind: string, secret: string, repeat: string) => ipcRenderer.invoke('lock:setup', kind, secret, repeat),
   lock: () => ipcRenderer.send('lock:lock'),
@@ -123,10 +130,10 @@ if (service) {
   setSchedule: (s: unknown) => ipcRenderer.invoke('prefs:schedule', s),
   lockCountdown: () => ipcRenderer.invoke('lock:countdown'),
   onLockCountdown: (cb: (c: { ms: number; rule: string } | null) => void) =>
-    ipcRenderer.on('lock:countdown', (_e, c) => cb(c)),
+    listen('lock:countdown', cb),
   lockMenu: () => ipcRenderer.send('lock:menu'),
   setDnd: (on: boolean) => ipcRenderer.invoke('prefs:dnd', on),
-  onDnd: (cb: (on: boolean) => void) => ipcRenderer.on('prefs:dnd-changed', (_e, on) => cb(on)),
+  onDnd: (cb: (on: boolean) => void) => listen('prefs:dnd-changed', cb),
   setQuietWorkHours: (on: boolean) => ipcRenderer.invoke('prefs:quiet-work-hours', on),
   setStartOnLogin: (on: boolean) => ipcRenderer.invoke('prefs:autostart', on),
   changeLock: (current: string, kind: string, secret: string, repeat: string) => ipcRenderer.invoke('lock:change', current, kind, secret, repeat),
@@ -134,40 +141,40 @@ if (service) {
   state: () => ipcRenderer.invoke('accounts:state'),
   unread: () => ipcRenderer.invoke('unread:get'),
   onUnread: (cb: (counts: Record<string, number>) => void) =>
-    ipcRenderer.on('unread:update', (_e, counts) => cb(counts)),
+    listen('unread:update', cb),
   inbox: () => ipcRenderer.invoke('inbox:get'),
   inboxRead: (id: string) => ipcRenderer.invoke('inbox:read', id),
   inboxReadAll: () => ipcRenderer.invoke('inbox:read-all'),
   inboxClear: () => ipcRenderer.invoke('inbox:clear'),
-  onInbox: (cb: (s: unknown) => void) => ipcRenderer.on('inbox:update', (_e, s) => cb(s)),
+  onInbox: (cb: (s: unknown) => void) => listen('inbox:update', cb),
   sleep: () => ipcRenderer.invoke('sleep:get'),
-  onSleep: (cb: (s: unknown) => void) => ipcRenderer.on('sleep:update', (_e, s) => cb(s)),
+  onSleep: (cb: (s: unknown) => void) => listen('sleep:update', cb),
   setSidebar: (collapsed: boolean) => ipcRenderer.send('sidebar:set', collapsed),
-  onSidebar: (cb: (collapsed: boolean) => void) => ipcRenderer.on('sidebar:changed', (_e, c) => cb(c)),
+  onSidebar: (cb: (collapsed: boolean) => void) => listen('sidebar:changed', cb),
   setSidebarHidden: (hidden: boolean) => ipcRenderer.send('sidebar:hidden', hidden),
   setSidebarWidth: (width: number) => ipcRenderer.send('sidebar:width', width),
-  onSidebarLayout: (cb: (l: { collapsed: boolean; hidden: boolean; width: number }) => void) => ipcRenderer.on('sidebar:layout', (_e, l) => cb(l)),
+  onSidebarLayout: (cb: (l: { collapsed: boolean; hidden: boolean; width: number }) => void) => listen('sidebar:layout', cb),
   splitMenu: (id: string) => ipcRenderer.send('split:menu', id),
   closeSplit: () => ipcRenderer.send('split:close'),
   setSplitRatio: (ratio: number) => ipcRenderer.send('split:ratio', ratio),
   saveSplitRatio: (ratio: number) => ipcRenderer.send('split:ratio-end', ratio),
-  onSplit: (cb: (s: { b: string; ratio: number } | undefined) => void) => ipcRenderer.on('split:changed', (_e, s) => cb(s)),
+  onSplit: (cb: (s: { b: string; ratio: number } | undefined) => void) => listen('split:changed', cb),
   select: (id: string) => ipcRenderer.send('accounts:select', id),
-  onSwitcher: (cb: () => void) => ipcRenderer.on('ui:switcher', () => cb()),
-  onShortcuts: (cb: () => void) => ipcRenderer.on('ui:help', () => cb()),
+  onSwitcher: (cb: () => void) => listen('ui:switcher', cb),
+  onShortcuts: (cb: () => void) => listen('ui:help', cb),
   dialog: (open: boolean) => ipcRenderer.send('ui:dialog', open),
   reload: (id: string) => ipcRenderer.send('accounts:reload', id),
   sleepNow: (id: string) => ipcRenderer.send('accounts:sleep', id),
   rowMenu: (id: string) => ipcRenderer.send('sidebar:menu', id),
-  onRowMenuPick: (cb: (p: { id: string; action: string }) => void) => ipcRenderer.on('sidebar:menu-pick', (_e, p) => cb(p)),
+  onRowMenuPick: (cb: (p: { id: string; action: string }) => void) => listen('sidebar:menu-pick', cb),
   reorder: (ids: string[]) => ipcRenderer.invoke('accounts:reorder', ids),
   resetZoom: (id: string) => ipcRenderer.invoke('accounts:zoom-reset', id),
-  onZoom: (cb: (s: unknown) => void) => ipcRenderer.on('accounts:zoom', (_e, s) => cb(s)),
+  onZoom: (cb: (s: unknown) => void) => listen('accounts:zoom', cb),
   mute: (id: string, muted: boolean) => ipcRenderer.invoke('accounts:mute', id, muted),
   setProxy: (id: string, value: string) => ipcRenderer.invoke('accounts:proxy', id, value),
   proxyMenu: (id: string) => ipcRenderer.send('proxy:menu', id),
   testProxy: (id: string) => ipcRenderer.invoke('proxy:test', id),
-  onOpenSheet: (cb: (id: string) => void) => ipcRenderer.on('ui:sheet', (_e, id) => cb(id)),
+  onOpenSheet: (cb: (id: string) => void) => listen('ui:sheet', cb),
   setBlur: (id: string, on: boolean) => ipcRenderer.invoke('accounts:blur', id, on),
   setBlurPart: (id: string, part: string, on: boolean) => ipcRenderer.invoke('accounts:blurpart', id, part, on),
   setKeepDeleted: (id: string, on: boolean) => ipcRenderer.invoke('accounts:keepdeleted', id, on),
@@ -177,7 +184,7 @@ if (service) {
   installExtension: (link: string) => ipcRenderer.invoke('ext:install', link),
   removeExtension: (id: string) => ipcRenderer.invoke('ext:remove', id),
   extensionMenu: (id: string) => ipcRenderer.send('ext:menu', id),
-  onOpenSettings: (cb: () => void) => ipcRenderer.on('settings:open', () => cb()),
+  onOpenSettings: (cb: () => void) => listen('settings:open', cb),
   setServiceEnabled: (serviceId: string, enabled: boolean) => ipcRenderer.invoke('services:set', serviceId, enabled),
   setPolicy: (id: string, policy: string) => ipcRenderer.invoke('accounts:policy', id, policy),
   logout: (id: string) => ipcRenderer.invoke('accounts:logout', id),
@@ -185,7 +192,7 @@ if (service) {
   updateState: () => ipcRenderer.invoke('update:state'),
   updateCheck: () => ipcRenderer.invoke('update:check'),
   updateApply: () => ipcRenderer.invoke('update:apply'),
-  onUpdate: (cb: (u: unknown) => void) => ipcRenderer.on('update:changed', (_e, u) => cb(u)),
+  onUpdate: (cb: (u: unknown) => void) => listen('update:changed', cb),
   exportBackup: (v: { password: string; includeLogins: boolean }) => ipcRenderer.invoke('backup:export', v),
   pickBackup: () => ipcRenderer.invoke('backup:pick'),
   inspectBackup: (v: { file: string; password: string }) => ipcRenderer.invoke('backup:inspect', v),
@@ -196,12 +203,12 @@ if (service) {
   blocking: () => ipcRenderer.invoke('blocking:get'),
   setBlocking: (v: { ads?: boolean; popups?: boolean }) => ipcRenderer.invoke('blocking:set', v),
   blockState: () => ipcRenderer.invoke('block:state'),
-  onBlock: (cb: (s: unknown) => void) => ipcRenderer.on('block:update', (_e, s) => cb(s)),
+  onBlock: (cb: (s: unknown) => void) => listen('block:update', cb),
   openBlockedPopup: (id: string) => ipcRenderer.invoke('block:open-popup', id),
   shieldMenu: (id: string) => ipcRenderer.send('block:menu', id),
-  onOpenSettingsTab: (cb: (tab: string) => void) => ipcRenderer.on('settings:open-tab', (_e, t) => cb(t)),
+  onOpenSettingsTab: (cb: (tab: string) => void) => listen('settings:open-tab', cb),
   add: (input: unknown) => ipcRenderer.invoke('accounts:add', input),
-  onLinkChoose: (cb: (r: unknown) => void) => ipcRenderer.on('links:choose', (_e, r) => cb(r)),
+  onLinkChoose: (cb: (r: unknown) => void) => listen('links:choose', cb),
   chooseLink: (id: number, choice: string | null) => ipcRenderer.send('links:chosen', id, choice),
-  onSelected: (cb: (id: string) => void) => ipcRenderer.on('accounts:selected', (_e, id) => cb(id))
+  onSelected: (cb: (id: string) => void) => listen('accounts:selected', cb)
 })

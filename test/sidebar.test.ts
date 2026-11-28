@@ -197,6 +197,33 @@ describe('Sidebar', () => {
   })
 })
 
+describe('row menu listener cleanup', () => {
+  it('removes the listener on unmount, so a hide/show cycle leaves one live listener and one mute', async () => {
+    type Pick = (p: { id: string; action: string }) => void
+    const live = new Set<Pick>()
+    const dispose = vi.fn((cb: Pick) => live.delete(cb))
+    ;(window as unknown as { guisedesk: unknown }).guisedesk = {
+      rowMenu: vi.fn(),
+      onRowMenuPick: vi.fn((cb: Pick) => {
+        live.add(cb)
+        return () => dispose(cb)
+      })
+    }
+    const first = mount(Sidebar, { props: { accounts } })
+    first.unmount()
+    const second = mount(Sidebar, { props: { accounts } })
+    second.unmount()
+    expect(dispose).toHaveBeenCalledTimes(2)
+    expect(live.size).toBe(0)
+    const third = mount(Sidebar, { props: { accounts } })
+    expect(live.size).toBe(1)
+    for (const cb of live) cb({ id: 'wa1', action: 'mute' })
+    expect(third.emitted('mute')).toEqual([['wa1', true]])
+    third.unmount()
+    expect(dispose).toHaveBeenCalledTimes(3)
+  })
+})
+
 describe('App sidebar state', () => {
   it('starts collapsed from the saved state, the panel button asks main, and main changes (Ctrl+B) are followed', async () => {
     const { flushPromises } = await import('@vue/test-utils')

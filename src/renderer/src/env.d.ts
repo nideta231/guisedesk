@@ -4,6 +4,9 @@ declare module '*.vue' {
   export default component
 }
 
+/** A preload `on*` helper returns the function that removes its listener (when the bridge provides one). */
+type Unsubscribe = void | (() => void)
+
 interface LinkChoice {
   id: number
   url: string
@@ -126,7 +129,7 @@ interface Window {
   guisedesk: {
     /** Lock state from main (the source of truth). Account data is only available while 'unlocked'. */
     lockState(): Promise<LockInfo>
-    onLock(cb: (info: LockInfo) => void): void
+    onLock(cb: (info: LockInfo) => void): Unsubscribe
     /** The entry goes to main once and is checked there; the answer is ok, wrong or a wait. */
     unlock(entry: string): Promise<{ result: 'ok' } | { result: 'wrong' } | { result: 'wait'; until: number }>
     setupLock(kind: 'pin' | 'password', secret: string, repeat: string): Promise<{ ok: true } | { error: string }>
@@ -139,12 +142,12 @@ interface Window {
     setIdle(minutes: 5 | 10 | 30 | 'manual'): Promise<boolean>
     /** The lock countdown (D57): time left under the active rule, or null when only manual locking applies. */
     lockCountdown(): Promise<{ ms: number; rule: string } | null>
-    onLockCountdown(cb: (c: { ms: number; rule: string } | null) => void): void
+    onLockCountdown(cb: (c: { ms: number; rule: string } | null) => void): Unsubscribe
     /** The countdown chip: main shows a native menu (rule, add 15 minutes, lock now, lock settings). */
     lockMenu(): void
     setDnd(on: boolean): Promise<boolean>
     /** The tray checkbox changed Do Not Disturb. */
-    onDnd(cb: (on: boolean) => void): void
+    onDnd(cb: (on: boolean) => void): Unsubscribe
     /** Quiet outside work hours (D58), separate from the tray DND switch. */
     setQuietWorkHours(on: boolean): Promise<boolean>
     setStartOnLogin(on: boolean): Promise<boolean>
@@ -154,51 +157,51 @@ interface Window {
     reset(typed: string): Promise<{ ok: true } | { error: string }>
     state(): Promise<Snapshot>
     unread(): Promise<Record<string, number>>
-    onUnread(cb: (counts: Record<string, number>) => void): void
+    onUnread(cb: (counts: Record<string, number>) => void): Unsubscribe
     /** Notifications inbox (D64): newest first, kept in main; muted accounts are kept but not counted. */
     inbox(): Promise<InboxSnapshot>
     inboxRead(id: string): Promise<InboxSnapshot>
     inboxReadAll(): Promise<InboxSnapshot>
     inboxClear(): Promise<InboxSnapshot>
-    onInbox(cb: (s: InboxSnapshot) => void): void
+    onInbox(cb: (s: InboxSnapshot) => void): Unsubscribe
     select(id: string): void
     sleep(): Promise<Record<string, { minutes: number; waking: boolean }>>
-    onSleep(cb: (s: Record<string, { minutes: number; waking: boolean }>) => void): void
+    onSleep(cb: (s: Record<string, { minutes: number; waking: boolean }>) => void): Unsubscribe
     /** Main selected an account (notification click). */
-    onSelected(cb: (id: string) => void): void
+    onSelected(cb: (id: string) => void): Unsubscribe
     /** Collapse or expand the sidebar; main saves it and resizes the service view. */
     setSidebar(collapsed: boolean): void
     /** Main changed the sidebar (Ctrl+B). */
-    onSidebar(cb: (collapsed: boolean) => void): void
+    onSidebar(cb: (collapsed: boolean) => void): Unsubscribe
     /** Hide the sidebar completely, or set its full width by dragging (D52). Main resizes the page and pushes the layout. */
     setSidebarHidden(hidden: boolean): void
     setSidebarWidth(width: number): void
-    onSidebarLayout(cb: (l: { collapsed: boolean; hidden: boolean; width: number }) => void): void
+    onSidebarLayout(cb: (l: { collapsed: boolean; hidden: boolean; width: number }) => void): Unsubscribe
     /** Split view (D62): main shows a native menu of the other accounts, closes it, or resizes both pages. */
     splitMenu(id: string): void
     closeSplit(): void
     setSplitRatio(ratio: number): void
     saveSplitRatio(ratio: number): void
-    onSplit(cb: (s: { b: string; ratio: number } | undefined) => void): void
+    onSplit(cb: (s: { b: string; ratio: number } | undefined) => void): Unsubscribe
     /** Dialog open: main detaches the service view so the dialog is not hidden behind it. */
     dialog(open: boolean): void
     /** Ctrl+K (D59): main asks for the quick switcher, from the window or a service view. */
-    onSwitcher(cb: () => void): void
+    onSwitcher(cb: () => void): Unsubscribe
     /** F1 (D60): main asks for the shortcut cheat sheet. */
-    onShortcuts(cb: () => void): void
+    onShortcuts(cb: () => void): Unsubscribe
     /** Top bar Reload: reloads the account's view, or wakes it when asleep. */
     reload(id: string): void
     /** Sleep now (D27): unloads the account's view; it wakes on Wake up, Reload or reselect. */
     sleepNow(id: string): void
     /** Sidebar row menu (D41): main pops up a native menu; the pick comes back through onRowMenuPick. */
     rowMenu(id: string): void
-    onRowMenuPick(cb: (p: { id: string; action: string }) => void): void
+    onRowMenuPick(cb: (p: { id: string; action: string }) => void): Unsubscribe
     /** Drag reorder (D28): full id list in the new order. */
     reorder(ids: string[]): Promise<Snapshot>
     /** Reset the shown account's zoom to 100% (D32). */
     resetZoom(id: string): Promise<Snapshot>
     /** Main changed a zoom level with the keyboard: the fresh snapshot. */
-    onZoom(cb: (s: Snapshot) => void): void
+    onZoom(cb: (s: Snapshot) => void): Unsubscribe
     /** Mute or unmute an account (D19). */
     mute(id: string, muted: boolean): Promise<Snapshot>
     /** Per-account proxy (D63): empty value is Direct; an invalid address comes back as an error. */
@@ -208,7 +211,7 @@ interface Window {
     /** Fetches the public IP through the account's proxy session. */
     testProxy(id: string): Promise<{ ip: string } | { error: string }>
     /** Main asks for the account sheet (the proxy menu's Change). */
-    onOpenSheet(cb: (id: string) => void): void
+    onOpenSheet(cb: (id: string) => void): Unsubscribe
     /** Blur media in an account's view until hovered (D42, D43). */
     setBlur(id: string, on: boolean): Promise<Snapshot>
     /** One WhatsApp privacy blur part on or off (D48). */
@@ -225,10 +228,10 @@ interface Window {
     /** Puzzle button: main shows the extensions menu for this account. */
     extensionMenu(id: string): void
     /** An external link matches several accounts (D40): pick one, 'browser', or null to cancel. */
-    onLinkChoose(cb: (r: LinkChoice) => void): void
+    onLinkChoose(cb: (r: LinkChoice) => void): Unsubscribe
     chooseLink(id: number, choice: string | null): void
     /** Settings was opened from the tray. */
-    onOpenSettings(cb: () => void): void
+    onOpenSettings(cb: () => void): Unsubscribe
     /** Switch a whole service on or off (D6); sessions stay. */
     setServiceEnabled(serviceId: string, enabled: boolean): Promise<Snapshot>
     /** Hibernation override for one account (D7): default | always | 10 | 30 | 60. */
@@ -241,7 +244,7 @@ interface Window {
     updateState(): Promise<UpdateInfo>
     updateCheck(): Promise<UpdateInfo>
     updateApply(): Promise<boolean>
-    onUpdate(cb: (u: UpdateInfo) => void): void
+    onUpdate(cb: (u: UpdateInfo) => void): Unsubscribe
     /** Backup and restore (D61): export writes one encrypted file; a restore is staged for the next start. */
     exportBackup(v: { password: string; includeLogins: boolean }): Promise<{ ok: true; file: string; manifest?: BackupManifest } | { canceled: true } | { error: string }>
     pickBackup(): Promise<{ file: string } | { canceled: true }>
@@ -256,13 +259,13 @@ interface Window {
     setBlocking(v: { ads?: boolean; popups?: boolean }): Promise<boolean>
     /** Top bar chips (D45): blocked requests per account since the view loaded, and the last dropped pop-up. */
     blockState(): Promise<BlockSnapshot>
-    onBlock(cb: (s: BlockSnapshot) => void): void
+    onBlock(cb: (s: BlockSnapshot) => void): Unsubscribe
     /** "Open anyway" on the Pop-up blocked chip: opens the dropped URL with the normal window.open handling. */
     openBlockedPopup(id: string): Promise<boolean>
     /** Shield chip click: main shows the stats menu. */
     shieldMenu(id: string): void
     /** Main asks for a Settings tab (the shield menu's Blocking settings). */
-    onOpenSettingsTab(cb: (tab: string) => void): void
+    onOpenSettingsTab(cb: (tab: string) => void): Unsubscribe
     add(input: {
       serviceId: string
       label: string
