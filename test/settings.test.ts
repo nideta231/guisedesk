@@ -104,6 +104,24 @@ describe('AccountSheet', () => {
   })
 })
 
+describe('Account sheet zoom row (UX-018)', () => {
+  it('shows 120% for zoom 1 and 100% with Reset disabled when there is no zoom', async () => {
+    const zoomed = mount(AccountSheet, { props: { account: { ...acc('ig1', 'instagram', '@shop', 3), zoom: 1 } } })
+    const zr = zoomed.findAll('.sr').find((r) => r.find('b').text() === 'Zoom')!
+    expect(zr.find('.t span').text()).toBe('120%')
+    expect(zr.find('.btn').attributes('disabled')).toBeUndefined()
+    await zr.find('.btn').trigger('click')
+    expect(zoomed.emitted('reset-zoom')).toHaveLength(1)
+
+    const plain = mount(AccountSheet, { props: { account: acc('ig1', 'instagram', '@shop', 3) } })
+    const pr = plain.findAll('.sr').find((r) => r.find('b').text() === 'Zoom')!
+    expect(pr.find('.t span').text()).toBe('100%')
+    expect(pr.find('.btn').attributes('disabled')).toBeDefined()
+    await pr.find('.btn').trigger('click')
+    expect(plain.emitted('reset-zoom')).toBeUndefined()
+  })
+})
+
 describe('Settings in the app', () => {
   let bridge: Record<string, ReturnType<typeof vi.fn> | unknown>
   let openSettings: () => void
@@ -145,6 +163,7 @@ describe('Settings in the app', () => {
         disabledServices: []
       })),
       logout: vi.fn(async () => snap([])),
+      resetZoom: vi.fn(async () => snap([])),
       remove: vi.fn(async () => ({ accounts: accounts.slice(1), selectedId: 'wa2', disabledServices: [] }))
     }
     ;(window as unknown as { guisedesk: unknown }).guisedesk = bridge
@@ -237,6 +256,18 @@ describe('Settings in the app', () => {
     const showLog = bridge.showEventLog as ReturnType<typeof vi.fn>
     expect(openData).toHaveBeenCalledOnce()
     expect(showLog).toHaveBeenCalledOnce()
+  })
+
+  it('the sheet zoom row shows the percentage and Reset calls resetZoom with the id (UX-018)', async () => {
+    const state = bridge.state as ReturnType<typeof vi.fn>
+    state.mockResolvedValueOnce({ accounts: accounts.map((a) => (a.id === 'ig1' ? { ...a, zoom: 1 } : a)), selectedId: 'wa1', disabledServices: [] })
+    const w = await open()
+    await w.findAll('.ar').find((r) => r.text().includes('@shop'))!.trigger('click')
+    const row = w.findAll('.glass .sr').find((r) => r.find('b').text() === 'Zoom')!
+    expect(row.find('.t span').text()).toBe('120%')
+    await row.find('.btn').trigger('click')
+    await flushPromises()
+    expect(bridge.resetZoom).toHaveBeenCalledWith('ig1')
   })
 
   it('a sidebar context item opens the sheet', async () => {

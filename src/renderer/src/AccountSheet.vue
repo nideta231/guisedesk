@@ -4,6 +4,7 @@ import { presetFor } from '../../main/presets'
 import { parseProxy, proxyRules } from '../../main/proxy'
 import { effectiveChoice, SLEEP_CHOICES } from '../../main/services'
 import { onPartition } from '../../main/sharing'
+import { zoomPercent } from '../../main/shortcuts'
 import { initials } from './initials'
 import LogoGlyph from './LogoGlyph.vue'
 import { logoStyle } from './logos'
@@ -13,12 +14,13 @@ const props = defineProps<{
   account: {
     id: string; serviceId: string; label: string; colour: string; idlePolicy?: string; muted?: boolean; blurMedia?: boolean; blurParts?: Record<string, boolean>; keepDeleted?: boolean; keeperUnavailable?: boolean; extensions?: string[]; extError?: string; shareWith?: string; proxy?: string; proxyUser?: string
     custom?: { name: string; icon?: string }
+    zoom?: number
   }
   accounts?: { id: string; serviceId: string; label: string; shareWith?: string }[]
   /** A save error from main (the address itself is checked here first). */
   proxyError?: string
 }>()
-const emit = defineEmits<{ policy: [value: string]; mute: [muted: boolean]; blur: [on: boolean]; blurPart: [part: string, on: boolean]; keepDeleted: [on: boolean]; proxy: [value: string]; edit: [label: string, colour: string]; logout: []; remove: []; done: [] }>()
+const emit = defineEmits<{ policy: [value: string]; mute: [muted: boolean]; blur: [on: boolean]; blurPart: [part: string, on: boolean]; keepDeleted: [on: boolean]; proxy: [value: string]; edit: [label: string, colour: string]; logout: []; remove: []; 'reset-zoom': []; done: [] }>()
 
 const glass = ref<HTMLElement>()
 useDialogFocus(glass)
@@ -150,6 +152,10 @@ function logout() {
       <div class="sr mute">
         <span class="t"><b>Mute</b><span>Keep the count, skip pop-ups</span></span>
         <button class="tg" :class="{ on: account.muted }" role="switch" :aria-checked="!!account.muted" aria-label="Mute" @click="emit('mute', !account.muted)"></button>
+      </div>
+      <div class="sr zoomrow">
+        <span class="t"><b>Zoom</b><span>{{ account.zoom ? zoomPercent(account.zoom) + '%' : '100%' }}</span></span>
+        <button class="btn zoomreset" :disabled="!account.zoom" @click="emit('reset-zoom')">Reset</button>
       </div>
       <div v-if="presetFor(account.serviceId)?.blurMedia" class="sr mute">
         <span class="t"><b>{{ blurLabel }}</b><span>{{ account.serviceId === 'whatsapp' ? 'Chats and messages show when you rest the pointer on them' : 'Photos and video show when you rest the pointer on them' }}</span></span>

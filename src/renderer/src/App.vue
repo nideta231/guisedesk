@@ -597,6 +597,7 @@ async function add(input: Parameters<Window['guisedesk']['add']>[0]) {
       @proxy="(v) => setProxy(sheetAccount!.id, v)"
       @edit="(label, colour) => editAccount(sheetAccount!.id, label, colour)"
       @logout="logout(sheetAccount!.id)"
+      @reset-zoom="resetZoom(sheetAccount!.id)"
       @remove="removeAccount(sheetAccount!.id)"
       @done="sheetId = undefined"
     />
