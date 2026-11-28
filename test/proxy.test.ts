@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { loadAccounts, loadProxyAuth, saveDnd, saveProxyAuth, setAccountProxy } from '../src/main/accounts'
 import { effectiveProxy, findProxyCredential, parseProxy, proxyLabel, proxyMenu, proxyRules, sameProxy } from '../src/main/proxy'
 import AccountSheet from '../src/renderer/src/AccountSheet.vue'
+import App from '../src/renderer/src/App.vue'
 import TopBar from '../src/renderer/src/TopBar.vue'
 
 const wa = { id: 'wa1', serviceId: 'whatsapp', label: 'Personal', colour: '#2f9e6e', order: 1 }
@@ -163,7 +164,6 @@ describe('TopBar proxy chip (D63)', () => {
 })
 
 async function app() {
-  const App = (await import('../src/renderer/src/App.vue')).default
   let openSheet: (id: string) => void = () => {}
   const proxyMenu = vi.fn()
   const setProxy = vi.fn(async (id: string, value: string) => ({

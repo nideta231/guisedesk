@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import App from '../src/renderer/src/App.vue'
 import AsleepPanel from '../src/renderer/src/AsleepPanel.vue'
 import Sidebar from '../src/renderer/src/Sidebar.vue'
 
@@ -47,7 +48,6 @@ describe('Sidebar asleep rows', () => {
 describe('App asleep panel', () => {
   it('shows the panel in the content area while the selected account is asleep, Wake up selects it', async () => {
     const { flushPromises } = await import('@vue/test-utils')
-    const App = (await import('../src/renderer/src/App.vue')).default
     let push: (s: Record<string, { minutes: number; waking: boolean }>) => void = () => {}
     const select = (await import('vitest')).vi.fn()
     ;(window as unknown as { guisedesk: unknown }).guisedesk = {

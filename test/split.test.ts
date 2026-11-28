@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { loadSplit, saveSplit } from '../src/main/accounts'
+import App from '../src/renderer/src/App.vue'
 import SplitDivider from '../src/renderer/src/SplitDivider.vue'
 import TopBar from '../src/renderer/src/TopBar.vue'
 
@@ -99,7 +100,6 @@ describe('TopBar split buttons (D62)', () => {
 })
 
 async function app(state: { accounts: typeof accounts; selectedId: string; disabledServices: string[]; split?: { b: string; ratio: number } } = { accounts, selectedId: 'wa1', disabledServices: [] }) {
-  const App = (await import('../src/renderer/src/App.vue')).default
   let pushSplit: (s: { b: string; ratio: number } | undefined) => void = () => {}
   const splitMenu = vi.fn()
   const closeSplit = vi.fn()

@@ -2,6 +2,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { filterAccounts, moveSelection, tokenScore } from '../src/main/quick'
+import App from '../src/renderer/src/App.vue'
 import QuickSwitcher from '../src/renderer/src/QuickSwitcher.vue'
 
 const rows = [
@@ -104,7 +105,6 @@ describe('QuickSwitcher', () => {
 })
 
 async function app() {
-  const App = (await import('../src/renderer/src/App.vue')).default
   let push: () => void = () => {}
   const select = vi.fn()
   const dialog = vi.fn()

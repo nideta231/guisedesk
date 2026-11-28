@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
+import App from '../src/renderer/src/App.vue'
 import Inbox from '../src/renderer/src/Inbox.vue'
 import Sidebar from '../src/renderer/src/Sidebar.vue'
 
@@ -83,7 +84,6 @@ describe('Sidebar inbox bell (D64)', () => {
 
 describe('App inbox wiring (D64)', () => {
   it('the bell opens the dialog, an item marks read and selects, and the dialog actions call main', async () => {
-    const App = (await import('../src/renderer/src/App.vue')).default
     const select = vi.fn()
     const inboxRead = vi.fn(async () => ({ items: items.map((i) => ({ ...i, read: true })), unread: 0 }))
     const inboxReadAll = vi.fn(async () => ({ items: items.map((i) => ({ ...i, read: true })), unread: 0 }))

@@ -2,6 +2,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { version } from '../package.json'
+import App from '../src/renderer/src/App.vue'
 import Sidebar from '../src/renderer/src/Sidebar.vue'
 
 const acc = (id: string, serviceId: string, label: string, order: number) => ({
@@ -228,7 +229,6 @@ describe('App sidebar state', () => {
   it('starts collapsed from the saved state, the panel button asks main, and main changes (Ctrl+B) are followed', async () => {
     const { flushPromises } = await import('@vue/test-utils')
     const { vi } = await import('vitest')
-    const App = (await import('../src/renderer/src/App.vue')).default
     let push: (c: boolean) => void = () => {}
     const setSidebar = vi.fn()
     ;(window as unknown as { guisedesk: unknown }).guisedesk = {

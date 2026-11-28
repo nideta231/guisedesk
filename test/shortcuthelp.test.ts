@@ -2,6 +2,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { isHelpShortcut, SHORTCUTS } from '../src/main/shortcuts'
+import App from '../src/renderer/src/App.vue'
 import SettingsGeneral from '../src/renderer/src/SettingsGeneral.vue'
 import ShortcutHelp from '../src/renderer/src/ShortcutHelp.vue'
 
@@ -61,7 +62,6 @@ describe('Settings > General row', () => {
 })
 
 async function app() {
-  const App = (await import('../src/renderer/src/App.vue')).default
   let help: () => void = () => {}
   const dialog = vi.fn()
   ;(window as unknown as { guisedesk: unknown }).guisedesk = {

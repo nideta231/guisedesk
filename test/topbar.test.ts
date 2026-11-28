@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
+import App from '../src/renderer/src/App.vue'
 import TopBar from '../src/renderer/src/TopBar.vue'
 import { panelBounds, TOP_BAR_H, TOP_BAR_GAP, PAD_TOP } from '../src/main/layout'
 
@@ -63,7 +64,6 @@ describe('layout with the bar', () => {
 })
 
 async function app(over: Record<string, unknown> = {}, lock = 'unlocked') {
-  const App = (await import('../src/renderer/src/App.vue')).default
   const g = {
     lockState: async () => ({ state: lock }),
     onLock: () => {},
