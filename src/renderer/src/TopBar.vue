@@ -22,7 +22,7 @@ const props = defineProps<{
   /** Page history (UX-013): Back and Forward are enabled only in that direction. */
   nav?: { canBack: boolean; canForward: boolean }
 }>()
-const emit = defineEmits<{ reload: []; back: []; forward: []; mute: [muted: boolean]; lock: []; sleep: []; settings: []; 'reset-zoom': []; 'open-popup': []; shield: []; extensions: []; 'lock-menu': []; 'proxy-menu': []; 'split-menu': []; 'close-split': [] }>()
+const emit = defineEmits<{ reload: []; home: []; back: []; forward: []; mute: [muted: boolean]; lock: []; sleep: []; settings: []; 'reset-zoom': []; 'open-popup': []; shield: []; extensions: []; 'lock-menu': []; 'proxy-menu': []; 'split-menu': []; 'close-split': [] }>()
 
 const service = computed(() => presetFor(props.account.serviceId)?.name ?? props.account.custom?.name ?? props.account.serviceId)
 // One chip: asleep, then muted, then always on (live chat or an always-on override); a live feed account has none.
@@ -59,6 +59,7 @@ const proxyText = computed(() => {
     <button v-else-if="!asleep" class="split splitbtn" title="Show a second account side by side" @click="emit('split-menu')">Split</button>
     <button v-if="!asleep" class="extbtn" title="Extensions" aria-label="Extensions" @click="emit('extensions')"><svg class="i" viewBox="0 0 24 24"><path d="M10 3h4v3a2 2 0 1 0 4 0V3h0a1 1 0 0 1 1 1v5h-3a2 2 0 1 0 0 4h3v6a1 1 0 0 1-1 1h-5v-3a2 2 0 1 0-4 0v3H4a1 1 0 0 1-1-1v-6h3a2 2 0 1 0 0-4H3V4a1 1 0 0 1 1-1h6z" /></svg></button>
     <div class="nav">
+      <button class="ib home" title="Home" aria-label="Home" @click="emit('home')"><svg class="i" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></svg></button>
       <button class="ib back" title="Back" aria-label="Back" :disabled="!nav?.canBack" @click="emit('back')"><svg class="i" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" /></svg></button>
       <button class="ib forward" title="Forward" aria-label="Forward" :disabled="!nav?.canForward" @click="emit('forward')"><svg class="i" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" /></svg></button>
     </div>

@@ -36,6 +36,11 @@ export function siblingsFor<T extends Acc>(account: T, accounts: T[], disabled: 
   return sidebarOrder(accounts.filter((a) => a.serviceId === account.serviceId && partitionKey(a) !== partitionKey(account) && homesOf(a).join() === homesOf(account).join()))
 }
 
+/** Where the top bar Home button goes (UX-014): the service start page or a custom site's URL. */
+export function homeUrl(a: { serviceId: string; custom?: { url: string } }): string | null {
+  return presetFor(a.serviceId)?.startUrl ?? a.custom?.url ?? null
+}
+
 /** A URL safe to load in another account's session: http(s) only, after unwrapping a redirect wrapper. */
 export function safeWebUrl(url: unknown): string | null {
   if (typeof url !== 'string') return null

@@ -12,7 +12,7 @@ import { cacheFavicon, readIcon, type Fetcher } from './favicon'
 import { validateNewAccount } from './validate'
 import { presetFor, CHROME_UA } from './presets'
 import { redirectAllowed, route } from './links'
-import { candidatesFor, homesOf, pickTarget, safeWebUrl, siblingsFor } from './servicelinks'
+import { candidatesFor, homeUrl, homesOf, pickTarget, safeWebUrl, siblingsFor } from './servicelinks'
 import { acceptPopupRequest, createPopups, openTarget } from './popups'
 import { blockedLine, isGesture, loadBlocking, popupBlocked, saveBlocking, type BlockingSettings } from './blocking'
 import { createAdblock } from './adblock'
@@ -1858,6 +1858,19 @@ function createWindow(): BrowserWindow {
     if (!a) return
     if (hib.isAsleep(a.id)) show(win, a, pushSleep)
     else views.get(a.id)?.webContents.reload()
+  })
+  // Top bar Home (UX-014): back to the service start page, or the custom site's URL; an asleep view wakes first.
+  gipc.on('accounts:home', (e: { sender: { id: number } }, id: string) => {
+    const a = fromApp(e) && enabled().find((x) => x.id === id)
+    if (!a) return
+    const url = safeWebUrl(homeUrl(a) ?? '')
+    if (!url) return
+    if (hib.isAsleep(a.id)) {
+      show(win, a, pushSleep)
+      return
+    }
+    const v = views.get(a.id)
+    if (v && !v.webContents.isDestroyed()) void v.webContents.loadURL(url)
   })
   // Top bar Back and Forward (UX-013): a guarded call into the account's page history.
   gipc.on('accounts:back', (e: { sender: { id: number } }, id: string) => {

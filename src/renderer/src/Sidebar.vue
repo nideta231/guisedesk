@@ -81,6 +81,7 @@ onMounted(() => {
   offRowMenu = window.guisedesk.onRowMenuPick(({ id, action }) => {
     if (action === 'mute') emit('mute', id, !props.accounts.find((a) => a.id === id)?.muted)
     else if (action === 'reload') window.guisedesk.reload(id)
+    else if (action === 'home') window.guisedesk.home(id)
     else if (action === 'sleep') emit('sleep', id)
     else if (action === 'account') emit('account', id)
   })

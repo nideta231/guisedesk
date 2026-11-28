@@ -191,6 +191,8 @@ interface Window {
     onShortcuts(cb: () => void): Unsubscribe
     /** Top bar Reload: reloads the account's view, or wakes it when asleep. */
     reload(id: string): void
+    /** Top bar Home (UX-014): loads the service start page, or a custom site's URL. */
+    home(id: string): void
     /** Top bar Back and Forward (UX-013): move in the account page's history. */
     back(id: string): void
     forward(id: string): void

@@ -164,6 +164,7 @@ if (service) {
   onShortcuts: (cb: () => void) => listen('ui:help', cb),
   dialog: (open: boolean) => ipcRenderer.send('ui:dialog', open),
   reload: (id: string) => ipcRenderer.send('accounts:reload', id),
+  home: (id: string) => ipcRenderer.send('accounts:home', id),
   back: (id: string) => ipcRenderer.send('accounts:back', id),
   forward: (id: string) => ipcRenderer.send('accounts:forward', id),
   onNavState: (cb: (s: { id: string; canBack: boolean; canForward: boolean }) => void) => listen('accounts:navstate', cb),

@@ -5,6 +5,7 @@ import App from '../src/renderer/src/App.vue'
 import TopBar from '../src/renderer/src/TopBar.vue'
 import { panelBounds, TOP_BAR_H, TOP_BAR_GAP, PAD_TOP } from '../src/main/layout'
 import { goBack, goForward, navState } from '../src/main/nav'
+import { homeUrl } from '../src/main/servicelinks'
 import { appOnly } from '../src/main/guard'
 
 const wa = { id: 'wa1', serviceId: 'whatsapp', label: 'Personal', colour: '#2f9e6e', order: 1 }
@@ -161,6 +162,31 @@ describe('App lock countdown', () => {
     expect(w.find('.top .locks').attributes('title')).toBe('Idle: 10 min without use')
     await w.find('.top .locks').trigger('click')
     expect(lockMenu).toHaveBeenCalled()
+  })
+})
+
+describe('TopBar Home (UX-014)', () => {
+  it('homeUrl picks the preset start page, a custom URL, or nothing', () => {
+    expect(homeUrl({ serviceId: 'whatsapp' })).toBe('https://web.whatsapp.com/')
+    expect(homeUrl({ serviceId: 'custom', custom: { url: 'https://wiki.example/' } })).toBe('https://wiki.example/')
+    expect(homeUrl({ serviceId: 'custom' })).toBeNull()
+    expect(homeUrl({ serviceId: 'unknown' })).toBeNull()
+  })
+
+  it('the Home button emits home and App forwards it with the account id', async () => {
+    const home = vi.fn()
+    const { w } = await app({ home })
+    await w.find('[aria-label="Home"]').trigger('click')
+    expect(home).toHaveBeenCalledExactlyOnceWith('wa1')
+  })
+
+  it('the main home handler refuses a non-app sender', () => {
+    const load = vi.fn()
+    const run = appOnly((e: { sender: { id: number } }) => e.sender.id === 1, (id: string) => load(id))
+    run({ sender: { id: 2 } }, 'wa1')
+    expect(load).not.toHaveBeenCalled()
+    run({ sender: { id: 1 } }, 'wa1')
+    expect(load).toHaveBeenCalledExactlyOnceWith('wa1')
   })
 })
 
