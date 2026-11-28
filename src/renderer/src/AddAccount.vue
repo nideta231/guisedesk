@@ -63,16 +63,20 @@ function submit() {
       <button class="ib x" title="Close (Esc)" aria-label="Close" @click="emit('cancel')"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
       <h3>Add an account</h3>
       <p class="sub">Each account gets its own sealed session. You'll log in inside GuiseDesk right after.</p>
-      <div class="pick">
-        <div
+      <div class="pick" role="radiogroup" aria-label="Service">
+        <button
           v-for="s in services"
           :key="s.id"
+          type="button"
+          role="radio"
+          :aria-checked="s.id === serviceId"
           class="pk"
           :class="{ sel: s.id === serviceId }"
           @click="serviceId = s.id"
+          @keydown.enter.prevent="serviceId = s.id"
         >
           <div class="lg" :style="logoStyle(s.id)"><LogoGlyph :service-id="s.id" /></div>{{ s.name }}
-        </div>
+        </button>
       </div>
       <template v-if="isCustom">
         <div class="lbl">Name</div>
@@ -90,14 +94,19 @@ function submit() {
         </div>
       </template>
       <div class="lbl">Colour</div>
-      <div class="sw">
-        <i
-          v-for="c in COLOURS"
+      <div class="sw" role="radiogroup" aria-label="Colour">
+        <button
+          v-for="(c, n) in COLOURS"
           :key="c"
+          type="button"
+          role="radio"
+          :aria-checked="c === colour"
+          :aria-label="'Colour ' + (n + 1)"
           :class="{ sel: c === colour }"
           :style="{ background: c }"
           @click="colour = c"
-        ></i>
+          @keydown.enter.prevent="colour = c"
+        ></button>
       </div>
       <div class="hint">{{ hint }}</div>
       <div v-if="error || props.serverError" class="err">{{ error || props.serverError }}</div>

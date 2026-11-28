@@ -24,7 +24,7 @@ describe('AddAccount dialog', () => {
     const w = mount(AddAccount)
     await pick(w, 'Instagram').trigger('click')
     await w.find('input.label').setValue('  Shop  ')
-    await w.findAll('.sw i')[2].trigger('click')
+    await w.findAll('.sw button')[2].trigger('click')
     await w.find('.btn.pri').trigger('click')
     const [payload] = w.emitted('add')![0] as unknown as [Record<string, unknown>]
     expect(payload).toMatchObject({ serviceId: 'instagram', label: 'Shop' })
@@ -49,6 +49,27 @@ describe('AddAccount dialog', () => {
     expect(w.emitted('add')![0][0]).toMatchObject({
       serviceId: 'custom', label: 'Wiki', custom: { name: 'Wiki', url: 'https://x.example.com/' }
     })
+  })
+
+  it('service tiles and colour swatches are buttons with role=radio and work from the keyboard', async () => {
+    const w = mount(AddAccount)
+    const tiles = w.findAll('.pick [role="radio"]')
+    expect(tiles).toHaveLength(8)
+    expect(tiles.every((t) => t.element.tagName === 'BUTTON')).toBe(true)
+    expect(tiles.every((t) => t.attributes('tabindex') === undefined)).toBe(true)
+    expect(w.find('.pick').attributes('role')).toBe('radiogroup')
+    expect(w.find('.pick').attributes('aria-label')).toBe('Service')
+    const tiktok = pick(w, 'TikTok')
+    expect(tiktok.attributes('aria-checked')).toBe('false')
+    await tiktok.trigger('keydown', { key: 'Enter' })
+    expect(tiktok.attributes('aria-checked')).toBe('true')
+    const sw = w.findAll('.sw [role="radio"]')
+    expect(sw).toHaveLength(6)
+    expect(sw.every((s) => s.element.tagName === 'BUTTON')).toBe(true)
+    expect(sw[0].attributes('aria-checked')).toBe('true')
+    expect(sw[2].attributes('aria-label')).toBe('Colour 3')
+    await sw[2].trigger('keydown', { key: 'Enter' })
+    expect(sw[2].attributes('aria-checked')).toBe('true')
   })
 
   it('Cancel emits cancel and no add', async () => {
