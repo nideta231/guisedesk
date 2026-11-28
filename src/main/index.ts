@@ -21,7 +21,7 @@ import { createBlockState, shieldMenuItems } from './blockstate'
 import { createDispatcher } from './webrequest'
 import { ElectronChromeExtensions } from 'electron-chrome-extensions'
 import { downloadExtension } from 'electron-chrome-web-store'
-import { actionClick, checkExtensionUpdates, createExtensionFetcher, enabledFor, extensionsDir, listInstalled, loadUpdateTimes, parseExtensionId, readManifest, saveUpdateTimes, toggled, type ExtensionUpdate } from './extensions'
+import { actionClick, checkExtensionUpdates, createExtensionFetcher, enabledFor, extensionsDir, listInstalled, loadUpdateTimes, parseExtensionId, readManifest, reloadEverywhere, saveUpdateTimes, toggled, type ExtensionUpdate } from './extensions'
 import { appendEvent, LOGIN_COOKIES, lostLogins } from './events'
 import { parseWaPage, readDirSafe, storeHasData, waStorePath, whatsappLoggedIn, WA_PAGE_SCRIPT, type WaPage } from './whatsapp'
 import { writeAtomic } from './atomic'
@@ -558,15 +558,11 @@ async function runExtensionUpdates(): Promise<ExtensionUpdateResult> {
     const old = installed.find((x) => x.id === u.id)
     try {
       const path = await fetchExtension(u.id, true)
-      for (const ses of extSessionSet) {
-        const sx = ses.extensions
-        if (!sx.getExtension(u.id)) continue
-        try {
-          sx.removeExtension(u.id)
-          await sx.loadExtension(path, { allowFileAccess: false })
-        } catch (err) {
-          console.error('[guisedesk] extension reload failed', u.id, err)
-        }
+      const reload = await reloadEverywhere(extSessionSet, u.id, path, old?.path ?? path)
+      if (!reload.ok) {
+        // The old folder stays next to the new one so the sessions that fell back still have a working copy.
+        appendEvent(dir, `extension update kept old copy ${u.id} (${reload.failed} session${reload.failed === 1 ? '' : 's'} failed)`)
+        continue
       }
       // The new copy is loaded everywhere that wanted it: the old version folder can go.
       if (old && old.path !== path) rmSync(old.path, { recursive: true, force: true })

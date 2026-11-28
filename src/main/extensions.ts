@@ -191,6 +191,44 @@ export function listInstalled(extDir: string): InstalledExtension[] {
 }
 
 /**
+ * Reloads one extension in every session that has it (D56). A session where the new copy fails to load gets the old
+ * copy back, so one bad update cannot silently disable the extension for that account.
+ */
+export interface ExtensionSessionLike {
+  extensions: {
+    getExtension(id: string): unknown
+    removeExtension(id: string): void
+    loadExtension(path: string, options?: { allowFileAccess?: boolean }): Promise<unknown>
+  }
+}
+
+export interface ReloadResult {
+  ok: boolean
+  failed: number
+}
+
+export async function reloadEverywhere(sessions: Iterable<ExtensionSessionLike>, id: string, newPath: string, oldPath: string): Promise<ReloadResult> {
+  let failed = 0
+  for (const ses of sessions) {
+    const sx = ses.extensions
+    if (!sx.getExtension(id)) continue
+    try {
+      sx.removeExtension(id)
+      await sx.loadExtension(newPath, { allowFileAccess: false })
+    } catch {
+      failed++
+      try {
+        sx.removeExtension(id)
+        await sx.loadExtension(oldPath, { allowFileAccess: false })
+      } catch {
+        /* the old copy is unusable too; nothing else to fall back to */
+      }
+    }
+  }
+  return { ok: failed === 0, failed }
+}
+
+/**
  * One download per extension at a time, shared by every caller: concurrent callers wait for the same promise.
  * download(id, extDir) unpacks into <extDir>/<id>/<version>_0 and returns that path. `force` skips the installed
  * copy, for an update check that already knows a newer version exists (D56). remove(id) tombstones a download that

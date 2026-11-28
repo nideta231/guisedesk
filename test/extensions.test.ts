@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
-import { actionClick, checkExtensionUpdates, compareVersions, createExtensionFetcher, enabledFor, listInstalled, loadUpdateTimes, parseExtensionId, parseUpdateVersion, readManifest, readyCopy, saveUpdateTimes, toggled, updateCheckUrl } from '../src/main/extensions'
+import { actionClick, checkExtensionUpdates, compareVersions, createExtensionFetcher, enabledFor, listInstalled, loadUpdateTimes, parseExtensionId, parseUpdateVersion, readManifest, readyCopy, reloadEverywhere, saveUpdateTimes, toggled, updateCheckUrl } from '../src/main/extensions'
 import { appendEvent, lostLogins } from '../src/main/events'
 import SettingsExtensions from '../src/renderer/src/SettingsExtensions.vue'
 
@@ -125,6 +125,46 @@ describe('extension auto-update (D56)', () => {
     expect(download).not.toHaveBeenCalled()
     expect(await fetch(WAWP, true)).toBe(join(root, WAWP, '5.2.10_0'))
     expect(download).toHaveBeenCalledOnce()
+  })
+
+  it('a failed new copy is rolled back to the old path in the sessions that had it', async () => {
+    const loaded: string[] = []
+    const installed = new Set([A])
+    const ses = {
+      extensions: {
+        getExtension: (id: string) => (installed.has(id) ? {} : undefined),
+        removeExtension: (id: string) => void installed.delete(id),
+        loadExtension: async (path: string) => {
+          loaded.push(path)
+          if (path === '/new/A') throw new Error('bad manifest')
+          installed.add(A)
+          return {}
+        }
+      }
+    }
+    expect(await reloadEverywhere([ses], A, '/new/A', '/old/A')).toEqual({ ok: false, failed: 1 })
+    expect(loaded).toEqual(['/new/A', '/old/A'])
+    expect(installed.has(A)).toBe(true)
+  })
+
+  it('a good update loads the new path once and leaves the sessions that did not have it alone', async () => {
+    const loaded: string[] = []
+    const withA = {
+      extensions: {
+        getExtension: (id: string) => (id === A ? {} : undefined),
+        removeExtension: () => undefined,
+        loadExtension: async (path: string) => (loaded.push(path), {})
+      }
+    }
+    const withoutA = {
+      extensions: {
+        getExtension: () => undefined,
+        removeExtension: () => { throw new Error('must not touch') },
+        loadExtension: async () => { throw new Error('must not touch') }
+      }
+    }
+    expect(await reloadEverywhere([withA, withoutA], A, '/new/A', '/old/A')).toEqual({ ok: true, failed: 0 })
+    expect(loaded).toEqual(['/new/A'])
   })
 })
 
