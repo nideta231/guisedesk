@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs'
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import AccountSheet from '../src/renderer/src/AccountSheet.vue'
@@ -95,5 +96,18 @@ describe('first-run empty state (UX-003)', () => {
     expect(w.find('.empty .btn').text()).toBe('Open Settings')
     await w.find('.empty .btn').trigger('click')
     expect(w.find('.tabs').exists()).toBe(true)
+  })
+})
+
+describe('visible keyboard focus (UX-038)', () => {
+  const css = readFileSync('src/renderer/src/styles/tokens.css', 'utf8')
+
+  it('has a global :focus-visible outline and hides the outline for mouse focus', () => {
+    expect(css).toMatch(/:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--text\)/)
+    expect(css).toMatch(/:focus:not\(:focus-visible\)\s*\{[^}]*outline:\s*none/)
+  })
+
+  it('keeps the text-input border focus rule', () => {
+    expect(css).toMatch(/\.inp:focus\s*\{[^}]*border-color:\s*var\(--text\)/)
   })
 })

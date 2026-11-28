@@ -18,6 +18,10 @@
 
 * { box-sizing: border-box; }
 
+/* Keyboard focus (UX-038): Tab always shows where it is; a mouse click keeps the old look. */
+:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+:focus:not(:focus-visible) { outline: none; }
+
 html, body, #app { height: 100%; margin: 0; }
 
 /* Thin dark scrollbars everywhere (D23). */
