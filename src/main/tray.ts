@@ -5,11 +5,11 @@ import { trayChange, trayLook, trayTemplate, type TrayIcon } from './traymenu'
 
 const icon = (name: string) => nativeImage.createFromPath(join(__dirname, '../../resources', name))
 
-export function createTray(onShow: () => void, onLock: () => void, onSettings: () => void, dnd: boolean, onDnd: (on: boolean) => void): { setUnread(total: number, locked: boolean): void; setDnd(on: boolean): void } {
+export function createTray(onShow: () => void, onLock: () => void, onSettings: () => void, dnd: boolean, onDnd: (on: boolean) => void, onReloadAll: () => void, onSleepAll: () => void): { setUnread(total: number, locked: boolean): void; setDnd(on: boolean): void } {
   const images: Record<TrayIcon, Electron.NativeImage> = { plain: icon('tray.png'), dot: icon('tray-dot.png') }
   const tray = new Tray(images.plain)
   tray.setToolTip('GuiseDesk')
-  const menu = (on: boolean) => tray.setContextMenu(Menu.buildFromTemplate(trayTemplate({ dnd: on, onLock, onShow, onSettings, onDnd, onQuit: () => app.quit() })))
+  const menu = (on: boolean) => tray.setContextMenu(Menu.buildFromTemplate(trayTemplate({ dnd: on, onLock, onShow, onSettings, onDnd, onReloadAll, onSleepAll, onQuit: () => app.quit() })))
   menu(dnd)
   tray.on('click', onShow)
   let total = 0

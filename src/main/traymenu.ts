@@ -9,15 +9,36 @@ export interface TrayMenuItem {
   click?: (item: { checked: boolean }) => void
 }
 
-export function trayTemplate(o: { dnd: boolean; onLock: () => void; onShow: () => void; onSettings: () => void; onDnd: (on: boolean) => void; onQuit: () => void }): TrayMenuItem[] {
+export interface TrayActions {
+  dnd: boolean
+  onLock: () => void
+  onShow: () => void
+  onSettings: () => void
+  onDnd: (on: boolean) => void
+  onReloadAll: () => void
+  onSleepAll: () => void
+  onQuit: () => void
+}
+
+export function trayTemplate(o: TrayActions): TrayMenuItem[] {
   return [
     { label: 'Show GuiseDesk', click: o.onShow },
     { label: 'Lock now', accelerator: 'Ctrl+L', registerAccelerator: false, click: o.onLock },
     { label: 'Do Not Disturb', type: 'checkbox', checked: o.dnd, click: (m) => o.onDnd(m.checked) },
+    { type: 'separator' },
+    { label: 'Reload all accounts', click: o.onReloadAll },
+    { label: 'Sleep all accounts', click: o.onSleepAll },
     { label: 'Settings', click: o.onSettings },
     { type: 'separator' },
     { label: 'Quit', click: o.onQuit }
   ]
+}
+
+export type BulkAction = 'reload' | 'sleep'
+
+/** Which accounts a tray bulk action acts on (UX-033): reload every enabled account, sleep all but the selected one. */
+export function bulkTargets<T extends { id: string; enabled?: boolean }>(accounts: T[], selectedId: string | undefined, action: BulkAction): T[] {
+  return accounts.filter((a) => a.enabled !== false && (action === 'reload' || a.id !== selectedId))
 }
 
 /** Tray icon file and tooltip: the unread dot is hidden while locked (D16). */

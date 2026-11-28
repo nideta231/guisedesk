@@ -28,6 +28,7 @@ import { writeAtomic } from './atomic'
 import { normalizeSchedule, type LockSchedule } from './schedule'
 import { applyBadge, parseUnread, totalUnread, updateWindowTitle, without } from './unread'
 import { createTray } from './tray'
+import { bulkTargets } from './traymenu'
 import { decideNotification, quietOutsideWorkHours } from './notify'
 import { applyPermissionPolicy } from './permissions'
 import { createHibernator, launchAsleep, limitMinutes } from './hibernate'
@@ -988,11 +989,42 @@ function createWindow(): BrowserWindow {
     showWindow()
     if (isUnlocked()) win.webContents.send('settings:open')
   }
+  // Bulk recovery from the tray (UX-033): reload every enabled account (waking sleepers in the background), or sleep
+  // every awake account except the selected one so the window keeps a page. One event each, no new timer.
+  function reloadAllAccounts(): void {
+    const targets = bulkTargets(enabled(), selectedId, 'reload')
+    let woke = 0
+    for (const a of targets) {
+      if (hib.isAsleep(a.id)) {
+        if (attachedId === a.id) show(win, a, pushSleep)
+        else {
+          hib.wake(a.id)
+          delete sleepState[a.id]
+          viewFor(a)
+        }
+        woke++
+      } else {
+        const v = views.get(a.id)
+        if (v && !v.webContents.isDestroyed()) v.webContents.reload()
+      }
+    }
+    if (woke) pushSleep()
+    appendEvent(dir, `reloaded all accounts (${targets.length})`)
+  }
+  function sleepAllAccounts(): void {
+    const targets = bulkTargets(enabled(), selectedId, 'sleep').filter((a) => !hib.isAsleep(a.id))
+    for (const a of targets) {
+      hib.sleep(a.id)
+      sleepAccount(a, 0)
+    }
+    if (targets.length) pushSleep()
+    appendEvent(dir, `slept all accounts (${targets.length})`)
+  }
   const tray = createTray(showWindow, () => lock.lock(), openSettings, dnd, (on) => {
     dnd = on
     saveDnd(dir, on)
     if (!win.isDestroyed() && isUnlocked()) win.webContents.send('prefs:dnd-changed', on)
-  })
+  }, reloadAllAccounts, sleepAllAccounts)
   // Close hides to the tray; only quitting (tray Quit, session end) really closes.
   // The first close explains this once (UX-032); the notice is generic, so it is safe while locked.
   win.on('close', (e) => {
