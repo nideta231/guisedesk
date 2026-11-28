@@ -179,6 +179,8 @@ interface Window {
     inboxReadAll(): Promise<InboxSnapshot>
     inboxClear(): Promise<InboxSnapshot>
     onInbox(cb: (s: InboxSnapshot) => void): Unsubscribe
+    /** Ctrl+Shift+I (UX-037): main asks the renderer to open the notifications inbox. */
+    onInboxShortcut(cb: () => void): Unsubscribe
     select(id: string): void
     sleep(): Promise<Record<string, { minutes: number; waking: boolean }>>
     onSleep(cb: (s: Record<string, { minutes: number; waking: boolean }>) => void): Unsubscribe

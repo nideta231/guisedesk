@@ -43,7 +43,7 @@ import { checkForUpdate, realRun, type UpdateInfo } from './updater'
 import { version } from '../../package.json'
 import { buildContextMenu, rowMenuItems } from './contextmenu'
 import { addDownload, clearDownloads, doneNotice, downloadOutcome, loadDownloadList, loadDownloads, pickFolder, saveDownloadList, saveDownloads, uniquePath } from './downloads'
-import { isHelpShortcut, isSettingsShortcut, isSwitcherShortcut, nextZoom, switchTarget, zoomKey, type KeyInput } from './shortcuts'
+import { isHelpShortcut, isInboxShortcut, isSettingsShortcut, isSwitcherShortcut, nextZoom, switchTarget, zoomKey, type KeyInput } from './shortcuts'
 import { accountsToUnload, sidebarOrder } from './services'
 import { PARTS, partsOn, type Part } from '../preload/blur'
 import { closePartitionPopups, onPartition, partitionKey, partitionOf } from './sharing'
@@ -165,6 +165,8 @@ let openSwitcher: () => void = () => {}
 let openHelp: () => void = () => {}
 // Ctrl+, (UX-036): ask the renderer for Settings from a service view or popup, raising the main window first.
 let openSettingsShortcut: () => void = () => {}
+// Ctrl+Shift+I (UX-037): ask the renderer to open the notifications inbox.
+let openInboxShortcut: () => void = () => {}
 const live = new Set<Notification>() // keep references so click handlers survive GC
 // Notifications inbox (D64): kept in memory and inbox.json; muted items stay but are not counted.
 let inbox: InboxItem[] = []
@@ -417,6 +419,12 @@ function hookLinks(v: WebContentsView, a: Account): void {
     if (isSettingsShortcut(input) && isUnlocked()) {
       e.preventDefault()
       openSettingsShortcut()
+      return
+    }
+    // Ctrl+Shift+I (UX-037): the notifications inbox, over the detached view.
+    if (isInboxShortcut(input) && isUnlocked()) {
+      e.preventDefault()
+      openInboxShortcut()
       return
     }
     if (zoomKeyDown(input) || switchKeyDown(input)) {
@@ -1029,6 +1037,11 @@ function createWindow(): BrowserWindow {
   openHelp = () => {
     showWindow()
     if (!win.isDestroyed() && isUnlocked()) win.webContents.send('ui:help')
+  }
+  // Ctrl+Shift+I (UX-037): raise the window and let the renderer open the notifications inbox.
+  openInboxShortcut = () => {
+    showWindow()
+    if (!win.isDestroyed() && isUnlocked()) win.webContents.send('ui:inbox')
   }
   // A second launch: raise this window (lock state unchanged) unless it was a --hidden login start.
   app.on('second-instance', (_e, argv) => {
@@ -1666,6 +1679,12 @@ function createWindow(): BrowserWindow {
     if (isSettingsShortcut(input) && isUnlocked()) {
       e.preventDefault()
       openSettings()
+      return
+    }
+    // Ctrl+Shift+I (UX-037): the notifications inbox.
+    if (isInboxShortcut(input) && isUnlocked()) {
+      e.preventDefault()
+      openInboxShortcut()
       return
     }
     if (zoomKeyDown(input) || switchKeyDown(input)) {

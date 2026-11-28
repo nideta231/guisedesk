@@ -231,6 +231,8 @@ onMounted(async () => {
   window.guisedesk.onSwitcher?.(() => openSwitcher())
   // F1 (D60) from main: the cheat sheet, over whatever else is open.
   window.guisedesk.onShortcuts?.(() => openHelp())
+  // Ctrl+Shift+I (UX-037) from main: the notifications inbox.
+  window.guisedesk.onInboxShortcut?.(() => openInbox())
   window.guisedesk.onOpenSettings(() => lockInfo.value.state === 'unlocked' && openSettings())
   await apply(await window.guisedesk.lockState())
   // Dev-only: the screenshot hook opens the dialog via ?dialog=add (or settings, with ?sheet=<account id>).

@@ -151,6 +151,7 @@ if (service) {
   inboxReadAll: () => ipcRenderer.invoke('inbox:read-all'),
   inboxClear: () => ipcRenderer.invoke('inbox:clear'),
   onInbox: (cb: (s: unknown) => void) => listen('inbox:update', cb),
+  onInboxShortcut: (cb: () => void) => listen('ui:inbox', cb),
   sleep: () => ipcRenderer.invoke('sleep:get'),
   onSleep: (cb: (s: unknown) => void) => listen('sleep:update', cb),
   setSidebar: (collapsed: boolean) => ipcRenderer.send('sidebar:set', collapsed),

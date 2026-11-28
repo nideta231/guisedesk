@@ -24,6 +24,10 @@ export const isHelpShortcut = (i: { type: string; key: string }): boolean => i.t
 export const isSettingsShortcut = (i: { type: string; control?: boolean; alt?: boolean; meta?: boolean; shift?: boolean; key: string }): boolean =>
   i.type === 'keyDown' && !!i.control && !i.alt && !i.meta && !i.shift && i.key === ','
 
+/** Ctrl+Shift+I (UX-037): the notifications inbox, the key Slack and Telegram use. */
+export const isInboxShortcut = (i: { type: string; control?: boolean; alt?: boolean; meta?: boolean; shift?: boolean; key: string }): boolean =>
+  i.type === 'keyDown' && !!i.control && !i.alt && !i.meta && !!i.shift && i.key.toLowerCase() === 'i'
+
 export interface ShortcutInfo {
   group: string
   keys: string
@@ -39,6 +43,7 @@ export const SHORTCUTS: ShortcutInfo[] = [
   { group: 'Window', keys: 'Ctrl+= / Ctrl+-', title: 'Zoom in / out' },
   { group: 'Window', keys: 'Ctrl+0', title: 'Reset zoom' },
   { group: 'Window', keys: 'Ctrl+,', title: 'Settings' },
+  { group: 'Window', keys: 'Ctrl+Shift+I', title: 'Notifications inbox' },
   { group: 'Window', keys: 'Esc', title: 'Close a dialog or Settings' },
   { group: 'Window', keys: 'F1', title: 'Keyboard shortcuts' },
   { group: 'Window', keys: '?', title: 'Keyboard shortcuts (app window, not in a field)' },

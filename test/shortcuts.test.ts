@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
-import { isSettingsShortcut, nextZoom, SHORTCUTS, switchTarget, zoomKey, zoomPercent } from '../src/main/shortcuts'
+import { flushPromises, mount } from '@vue/test-utils'
+import { describe, expect, it, vi } from 'vitest'
+import { isInboxShortcut, isSettingsShortcut, nextZoom, SHORTCUTS, switchTarget, zoomKey, zoomPercent } from '../src/main/shortcuts'
+import App from '../src/renderer/src/App.vue'
 import ShortcutHelp from '../src/renderer/src/ShortcutHelp.vue'
 import { sidebarOrder } from '../src/main/services'
 
@@ -99,5 +100,61 @@ describe('isSettingsShortcut (UX-036)', () => {
     expect(SHORTCUTS.find((s) => s.keys === 'Ctrl+,')).toMatchObject({ group: 'Window', title: 'Settings' })
     const w = mount(ShortcutHelp)
     expect(w.findAll('.hrow').some((r) => r.text().includes('Ctrl+,') && r.text().includes('Settings'))).toBe(true)
+  })
+})
+
+describe('isInboxShortcut (UX-037)', () => {
+  it('is true only for Ctrl+Shift+I; Ctrl+I, plain I, Alt, Meta and key-up do not count', () => {
+    expect(isInboxShortcut(k('i', { shift: true }))).toBe(true)
+    expect(isInboxShortcut(k('I', { shift: true }))).toBe(true)
+    expect(isInboxShortcut(k('i'))).toBe(false)
+    expect(isInboxShortcut(k('I'))).toBe(false)
+    expect(isInboxShortcut(k('i', { shift: true, control: false }))).toBe(false)
+    expect(isInboxShortcut(k('i', { shift: true, alt: true }))).toBe(false)
+    expect(isInboxShortcut(k('i', { shift: true, meta: true }))).toBe(false)
+    expect(isInboxShortcut(k('i', { shift: true, type: 'keyUp' }))).toBe(false)
+  })
+
+  it('the cheat sheet lists and renders the Ctrl+Shift+I inbox row', () => {
+    expect(SHORTCUTS.find((s) => s.keys === 'Ctrl+Shift+I')).toMatchObject({ group: 'Window', title: 'Notifications inbox' })
+    const w = mount(ShortcutHelp)
+    expect(w.findAll('.hrow').some((r) => r.text().includes('Ctrl+Shift+I') && r.text().includes('Notifications inbox'))).toBe(true)
+  })
+
+  it('App opens the inbox and tells main a dialog is open when main sends the shortcut', async () => {
+    let fire: () => void = () => {}
+    const dialog = vi.fn()
+    ;(window as unknown as { guisedesk: unknown }).guisedesk = {
+      lockState: async () => ({ state: 'unlocked' }),
+      onLock: () => {},
+      state: async () => ({ accounts: [], selectedId: undefined, disabledServices: [] }),
+      unread: async () => ({}),
+      onUnread: () => {},
+      inbox: async () => ({ items: [], unread: 0 }),
+      onInbox: () => {},
+      onInboxShortcut: (cb: () => void) => {
+        fire = cb
+      },
+      onSelected: () => {},
+      onOpenSettings: () => {},
+      sleep: async () => ({}),
+      onSleep: () => {},
+      dialog,
+      onSidebar: () => {},
+      onZoom: () => {},
+      onLinkChoose: () => {},
+      onRowMenuPick: () => {},
+      onUpdate: () => {},
+      updateState: async () => ({ state: 'none' })
+    }
+    const w = mount(App)
+    await flushPromises()
+    expect(w.find('.inbox').exists()).toBe(false)
+    dialog.mockClear()
+    fire()
+    await flushPromises()
+    expect(w.find('.inbox').exists()).toBe(true)
+    expect(dialog).toHaveBeenCalledWith(true)
+    w.unmount()
   })
 })
