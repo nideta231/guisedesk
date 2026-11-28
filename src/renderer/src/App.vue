@@ -55,6 +55,9 @@ const lockChip = ref<{ ms: number; rule: string } | null>(null)
 const split = ref<{ b: string; ratio: number } | undefined>()
 // Per-account proxy (D63): a save error from main shown in the account sheet.
 const proxyError = ref('')
+// A main-frame page load failed (UX-010): the retry card covers the empty panel until a load starts.
+const pageError = ref<{ id: string; description: string } | undefined>()
+const shownPageError = computed(() => (pageError.value && current.value && pageError.value.id === current.value.id ? pageError.value : undefined))
 const settingsTab = ref<string | undefined>()
 // An external link that matches several accounts (D40): main asks, we answer once. Main detaches the view while it is open.
 const choosing = ref<LinkChoice | undefined>()
@@ -99,6 +102,7 @@ function wipe() {
   inboxOpen.value = false
   lockChip.value = null
   split.value = undefined
+  pageError.value = undefined
 }
 
 // Any layer that must have the service view off the window (D59): Settings, Add account, the link chooser, the dialogs.
@@ -171,6 +175,13 @@ onMounted(async () => {
     sideWidthPx.value = l.width
   })
   window.guisedesk.onSplit?.((s) => (split.value = s))
+  window.guisedesk.onPageError?.((p) => {
+    if (p.cleared) {
+      if (pageError.value?.id === p.id) pageError.value = undefined
+      return
+    }
+    pageError.value = { id: p.id, description: p.description ?? 'The page could not be loaded.' }
+  })
   window.guisedesk.onUnread((c) => (counts.value = { ...c }))
   window.guisedesk.onInbox?.((s) => (inbox.value = s))
   window.guisedesk.onSelected((id) => {
@@ -272,6 +283,9 @@ function sleepNow(id: string) {
 }
 function reload(id: string) {
   window.guisedesk.reload(id)
+}
+function openSite(id: string) {
+  window.guisedesk.openSite(id)
 }
 
 function lockNow() {
@@ -487,7 +501,17 @@ async function add(input: Parameters<Window['guisedesk']['add']>[0]) {
           <button class="btn" @click="openSettings">Open Settings</button>
         </div>
       </div>
-      <div v-else class="panel"><SplitDivider v-if="split" :ratio="split.ratio" @move="moveSplit" @end="endSplitDrag" /></div>
+      <div v-else class="panel">
+        <SplitDivider v-if="split" :ratio="split.ratio" @move="moveSplit" @end="endSplitDrag" />
+        <div v-if="shownPageError" class="page-error">
+          <h3>The page did not load</h3>
+          <p class="hint">{{ shownPageError.description }}</p>
+          <div class="btns">
+            <button class="btn" @click="openSite(shownPageError.id)">Open site in browser</button>
+            <button class="btn pri" @click="reload(shownPageError.id)">Try again</button>
+          </div>
+        </div>
+      </div>
     </main>
     <AccountSheet
       v-if="settingsOpen && sheetAccount"
@@ -513,7 +537,10 @@ async function add(input: Parameters<Window['guisedesk']['add']>[0]) {
 </template>
 
 <style scoped>
-.empty { display: grid; place-items: center; text-align: center; }
-.empty h3 { margin: 16px 0 6px; font-size: 18px; font-weight: 800; }
-.empty .hint { margin: 0 0 18px; }
+.empty, .page-error { display: grid; place-items: center; text-align: center; }
+.empty { height: 100%; }
+.empty h3, .page-error h3 { margin: 16px 0 6px; font-size: 18px; font-weight: 800; }
+.empty .hint, .page-error .hint { margin: 0 0 18px; }
+.page-error { position: absolute; inset: 0; }
+.page-error .btns { margin-top: 0; justify-content: center; }
 </style>

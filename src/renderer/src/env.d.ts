@@ -191,6 +191,10 @@ interface Window {
     onShortcuts(cb: () => void): Unsubscribe
     /** Top bar Reload: reloads the account's view, or wakes it when asleep. */
     reload(id: string): void
+    /** Retry card (UX-010): opens the account's start page in the system browser. */
+    openSite(id: string): void
+    /** A main-frame page load failed, or a later load cleared the retry card. */
+    onPageError(cb: (p: { id: string; code?: number; description?: string; cleared?: boolean }) => void): Unsubscribe
     /** Sleep now (D27): unloads the account's view; it wakes on Wake up, Reload or reselect. */
     sleepNow(id: string): void
     /** Sidebar row menu (D41): main pops up a native menu; the pick comes back through onRowMenuPick. */

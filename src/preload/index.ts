@@ -164,6 +164,8 @@ if (service) {
   onShortcuts: (cb: () => void) => listen('ui:help', cb),
   dialog: (open: boolean) => ipcRenderer.send('ui:dialog', open),
   reload: (id: string) => ipcRenderer.send('accounts:reload', id),
+  openSite: (id: string) => ipcRenderer.send('accounts:open-site', id),
+  onPageError: (cb: (p: { id: string; code?: number; description?: string; cleared?: boolean }) => void) => listen('page:error', cb),
   sleepNow: (id: string) => ipcRenderer.send('accounts:sleep', id),
   rowMenu: (id: string) => ipcRenderer.send('sidebar:menu', id),
   onRowMenuPick: (cb: (p: { id: string; action: string }) => void) => listen('sidebar:menu-pick', cb),

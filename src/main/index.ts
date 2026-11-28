@@ -57,6 +57,7 @@ import { createInboxSaver, loadInbox, saveInbox } from './inboxstore'
 import { flushSessions, flushThenClose, sessionKeys } from './sessionlife'
 import { collectLogins, createLoginScheduler } from './logincheck'
 import { onceMainFrameSettled } from './mainframe'
+import { isReportableLoadError } from './pageerror'
 import { watchViewHealth } from './viewhealth'
 
 // Both must run before `ready`. setName first: it resets the default userData path, which setPath then overrides,
@@ -748,6 +749,24 @@ function viewFor(a: Account): WebContentsView {
     v.webContents.on('dom-ready', () => v!.webContents.setZoomLevel(owner.get(v!.webContents.id)?.zoom ?? 0))
     // Extensions (D49) must be loaded before the page so their content scripts run on it.
     const wc = v.webContents
+    // A failed main document would leave a blank panel (UX-010): take the view off the panel so the renderer's
+    // retry card is visible, and put it back as soon as a new load starts.
+    const sendPageError = (payload: { id: string; code?: number; description?: string; cleared?: boolean }) => {
+      const w = mainWin
+      if (w && !w.isDestroyed()) w.webContents.send('page:error', payload)
+    }
+    wc.on('did-fail-load', (_e, code, description, _url, isMainFrame) => {
+      if (!isReportableLoadError(isMainFrame, code)) return
+      const w = mainWin
+      if (w && !w.isDestroyed() && attached === v) detach(w, v!)
+      sendPageError({ id: a.id, code, description })
+    })
+    wc.on('did-start-loading', () => {
+      sendPageError({ id: a.id, cleared: true })
+      const w = mainWin
+      if (w && !w.isDestroyed() && attached === v) attach(w, v!)
+    })
+    wc.on('did-finish-load', () => sendPageError({ id: a.id, cleared: true }))
     // WhatsApp keeps its login in IndexedDB, so the cookie check cannot see it (D50). Once the page is up, look for
     // the QR screen versus the chat panel and record whether the login survived.
     if (a.serviceId === 'whatsapp') wc.once('did-finish-load', () => scheduleLoginCheck(2500))
@@ -1809,6 +1828,13 @@ function createWindow(): BrowserWindow {
     if (!a) return
     if (hib.isAsleep(a.id)) show(win, a, pushSleep)
     else views.get(a.id)?.webContents.reload()
+  })
+  // Retry card's "Open site in browser": the account's start page outside GuiseDesk (UX-010).
+  gipc.on('accounts:open-site', (e: { sender: { id: number } }, id: string) => {
+    const a = fromApp(e) && enabled().find((x) => x.id === id)
+    if (!a) return
+    const url = safeWebUrl(presetFor(a.serviceId)?.startUrl ?? a.custom?.url ?? '')
+    if (url) void shell.openExternal(url)
   })
   // Sleep now (D27): works on any account; minutes 0 marks it manual. The selected one is detached so the asleep panel shows.
   gipc.on('accounts:sleep', (e: { sender: { id: number } }, id: string) => {
