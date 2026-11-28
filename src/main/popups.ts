@@ -36,3 +36,20 @@ export function acceptPopupRequest(url: unknown, account: Account): string | nul
   const r = route(url, account)
   return r.action === 'in-app' ? r.url : null
 }
+
+const TITLE_MAX = 80
+
+/** Popup window title (UX-047): the page title, then the account label; an empty page title falls back to the service. */
+export function popupTitle(pageTitle: string, label: string, service: string): string {
+  const head = pageTitle.trim() || service.trim()
+  const tail = label.trim()
+  const full = tail ? `${head} · ${tail}` : head
+  return full.length > TITLE_MAX ? `${full.slice(0, TITLE_MAX - 1).trimEnd()}…` : full
+}
+
+/** Sets the window title and returns it; the window is a plain object in tests. */
+export function applyPopupTitle(w: { setTitle(title: string): void }, pageTitle: string, label: string, service: string): string {
+  const title = popupTitle(pageTitle, label, service)
+  w.setTitle(title)
+  return title
+}

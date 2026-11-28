@@ -1,6 +1,31 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createPopups, openTarget } from '../src/main/popups'
+import { applyPopupTitle, createPopups, openTarget, popupTitle } from '../src/main/popups'
 import { closePartitionPopups } from '../src/main/sharing'
+
+describe('popupTitle (UX-047)', () => {
+  it('puts the account label after the page title', () => {
+    expect(popupTitle('Post', 'Personal', 'Instagram')).toBe('Post · Personal')
+  })
+
+  it('falls back to the service when the page has no title', () => {
+    expect(popupTitle('   ', 'Personal', 'Instagram')).toBe('Instagram · Personal')
+    expect(popupTitle('', 'Work', 'WhatsApp')).toBe('WhatsApp · Work')
+  })
+
+  it('caps a long title and marks the cut', () => {
+    const title = popupTitle('x'.repeat(200), 'Personal', 'Instagram')
+    expect(title.length).toBeLessThanOrEqual(80)
+    expect(title.endsWith('…')).toBe(true)
+  })
+
+  it('sets the title on the window and returns it', () => {
+    const win = { setTitle: vi.fn() }
+    expect(applyPopupTitle(win, 'Post', 'Personal', 'Instagram')).toBe('Post · Personal')
+    expect(win.setTitle).toHaveBeenCalledExactlyOnceWith('Post · Personal')
+    applyPopupTitle(win, '', 'Work', 'WhatsApp')
+    expect(win.setTitle).toHaveBeenLastCalledWith('WhatsApp · Work')
+  })
+})
 
 describe('openTarget', () => {
   const table: [string, 'in-app' | 'external' | 'deny', string][] = [

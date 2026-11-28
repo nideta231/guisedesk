@@ -13,7 +13,7 @@ import { validateNewAccount } from './validate'
 import { presetFor, CHROME_UA } from './presets'
 import { redirectAllowed, route } from './links'
 import { candidatesFor, homeUrl, homesOf, pickTarget, safeWebUrl, siblingsFor } from './servicelinks'
-import { acceptPopupRequest, createPopups, openTarget } from './popups'
+import { acceptPopupRequest, applyPopupTitle, createPopups, openTarget } from './popups'
 import { blockedLine, isGesture, loadBlocking, popupBlocked, saveBlocking, type BlockingSettings } from './blocking'
 import { createAdblock } from './adblock'
 import { buildInWorker, loadEngineBytes, PRELOAD_PATH } from './adengine'
@@ -312,6 +312,8 @@ function openPopup(a: Account, url: string): void {
     webPreferences: { partition: partitionOf(a), sandbox: true, contextIsolation: true, devTools }
   })
   w.removeMenu()
+  const serviceName = presetFor(a.serviceId)?.name ?? 'Custom site'
+  applyPopupTitle(w, '', a.label, serviceName)
   const wc = w.webContents
   wc.setUserAgent(presetFor(a.serviceId)?.userAgent ?? CHROME_UA)
   const go = hookNav(wc, a)
@@ -328,7 +330,7 @@ function openPopup(a: Account, url: string): void {
   hookContextMenu(wc)
   wc.setZoomLevel(a.zoom ?? 0)
   wc.on('dom-ready', () => wc.setZoomLevel(a.zoom ?? 0))
-  wc.on('page-title-updated', (_e, title) => w.setTitle(title))
+  wc.on('page-title-updated', (_e, title) => applyPopupTitle(w, title, a.label, serviceName))
   wc.on('before-input-event', (e, input) => {
     hib.touch(a.id)
     touchIdle()
