@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref, watch } from 'vue'
+import { isSettingsTab, SETTINGS_TABS } from '../../main/settingsTabs'
 import SettingsExtensions from './SettingsExtensions.vue'
 import SettingsGeneral from './SettingsGeneral.vue'
 import SettingsLock from './SettingsLock.vue'
@@ -9,19 +10,30 @@ import SettingsServices from './SettingsServices.vue'
 const props = defineProps<{ accounts: AccountRow[]; disabled: string[]; update?: UpdateInfo; tab?: string }>()
 const emit = defineEmits<{ back: []; toggle: [serviceId: string, enabled: boolean]; open: [id: string]; unmute: [id: string]; reset: []; check: []; apply: []; shortcuts: [] }>()
 
-const TABS = ['Services', 'Lock', 'Notifications', 'Extensions', 'General']
+const TABS: string[] = [...SETTINGS_TABS]
 // Dev-only: the screenshot hook opens a tab with ?tab=Lock.
 const first = new URLSearchParams(location.search).get('tab') ?? ''
-const tab = ref(TABS.includes(props.tab ?? '') ? props.tab! : TABS.includes(first) ? first : 'Services')
-watch(() => props.tab, (t) => t && TABS.includes(t) && (tab.value = t))
+const explicit = isSettingsTab(props.tab) ? props.tab : undefined
+const fromQuery = isSettingsTab(first) ? first : undefined
+const tab = ref<string>(explicit ?? fromQuery ?? 'Services')
+watch(() => props.tab, (t) => isSettingsTab(t) && (tab.value = t))
 
 // Keyboard tabs (UX-005): each tab is a real button with the ARIA tab pattern.
 const tabEls = ref<HTMLButtonElement[]>([])
 function focusTab() {
   void nextTick(() => tabEls.value[TABS.indexOf(tab.value)]?.focus())
 }
-onMounted(focusTab)
-watch(tab, focusTab)
+onMounted(async () => {
+  focusTab()
+  // UX-006: only when nothing (the tray, the shield menu, the dev hook) asked for a tab, reopen the last one used.
+  if (explicit || fromQuery) return
+  const last = await window.guisedesk?.lastSettingsTab?.()
+  if (isSettingsTab(last)) tab.value = last
+})
+watch(tab, (t) => {
+  focusTab()
+  void window.guisedesk?.saveLastSettingsTab?.(t)
+})
 function onTabKey(e: KeyboardEvent) {
   const i = TABS.indexOf(tab.value)
   let next = i

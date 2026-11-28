@@ -125,6 +125,8 @@ if (service) {
   setupLock: (kind: string, secret: string, repeat: string) => ipcRenderer.invoke('lock:setup', kind, secret, repeat),
   lock: () => ipcRenderer.send('lock:lock'),
   prefs: () => ipcRenderer.invoke('prefs:get'),
+  lastSettingsTab: () => ipcRenderer.invoke('settings:last-tab-get'),
+  saveLastSettingsTab: (tab: string) => ipcRenderer.invoke('settings:last-tab', tab),
   setIdle: (minutes: unknown) => ipcRenderer.invoke('prefs:idle', minutes),
   schedule: () => ipcRenderer.invoke('prefs:schedule-get'),
   setSchedule: (s: unknown) => ipcRenderer.invoke('prefs:schedule', s),

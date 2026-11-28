@@ -310,6 +310,39 @@ describe('account rename and colour (UX-016)', () => {
   })
 })
 
+describe('Settings reopens the last tab (UX-006)', () => {
+  const bridge = (last?: string) => ({
+    lastSettingsTab: vi.fn(async () => last),
+    saveLastSettingsTab: vi.fn(async () => true),
+    prefs: vi.fn(async () => ({ idleLock: 10 as const, dnd: false, startOnLogin: false })),
+    downloads: vi.fn(async () => ({ dir: '/dl', ask: false })),
+    downloadsList: vi.fn(async () => []),
+    blocking: vi.fn(async () => ({ ads: false, popups: true })),
+    lockState: vi.fn(async () => ({ state: 'unlocked', kind: 'pin' })),
+    schedule: vi.fn(async () => null)
+  })
+
+  it('starts on the saved tab, saves a switch, and an explicit tab prop still wins', async () => {
+    const b = bridge('General')
+    ;(window as unknown as { guisedesk: unknown }).guisedesk = b
+    const w = mount(Settings, { props: { accounts, disabled: [] } })
+    await flushPromises()
+    expect(w.find('.tabs .sel').text()).toBe('General')
+    expect(w.findComponent({ name: 'SettingsGeneral' }).exists()).toBe(true)
+    await w.findAll('.tabs button').find((t) => t.text() === 'Lock')!.trigger('click')
+    expect(b.saveLastSettingsTab).toHaveBeenCalledWith('Lock')
+    await w.findAll('.tabs button').find((t) => t.text() === 'General')!.trigger('click')
+    expect(b.saveLastSettingsTab).toHaveBeenLastCalledWith('General')
+
+    b.lastSettingsTab.mockClear()
+    const e = mount(Settings, { props: { accounts, disabled: [], tab: 'Lock' } })
+    await flushPromises()
+    expect(e.find('.tabs .sel').text()).toBe('Lock')
+    expect(b.lastSettingsTab).not.toHaveBeenCalled()
+    delete (window as unknown as { guisedesk?: unknown }).guisedesk
+  })
+})
+
 describe('Settings tabs from the keyboard (UX-005)', () => {
   const stubs = { SettingsServices: true, SettingsLock: true, SettingsNotifications: true, SettingsExtensions: true, SettingsGeneral: true }
   const open = () => mount(Settings, { props: { accounts, disabled: [] }, global: { stubs } })

@@ -5,6 +5,7 @@ import { writeAtomic, type Fs } from './atomic'
 import { appendEvent } from './events'
 import { PARTS, type Part } from '../preload/blur'
 import { clampSplit } from './layout'
+import { isSettingsTab, type SettingsTab } from './settingsTabs'
 import { checkShare, validateNewAccount, type NewAccountInput } from './validate'
 import type { ProxyCredential } from './proxy'
 
@@ -278,6 +279,20 @@ export function saveSidebarLayout(dir: string, v: { width: number; hidden: boole
 
 export function saveSidebarCollapsed(dir: string, sidebarCollapsed: boolean): void {
   updateSettings(dir, { sidebarCollapsed })
+}
+
+/** The last Settings tab used (UX-006), in settings.json key lastSettingsTab; missing or unknown = Services. */
+export function loadLastSettingsTab(dir: string): SettingsTab | undefined {
+  try {
+    const v = JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8')).lastSettingsTab
+    return isSettingsTab(v) ? v : undefined
+  } catch {
+    return undefined
+  }
+}
+
+export function saveLastSettingsTab(dir: string, tab: unknown): void {
+  if (isSettingsTab(tab)) updateSettings(dir, { lastSettingsTab: tab })
 }
 
 /** Split view (D62) in settings.json key split: the two account ids and the divider ratio. */

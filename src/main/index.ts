@@ -5,7 +5,7 @@ import { homedir, tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, Notification, nativeImage, powerMonitor, session, shell, WebContentsView } from 'electron'
 import { appRoot, dataDir, devUnlocked } from './paths'
-import { addAccount, editAccount, IDLE_POLICIES, loadAccounts, loadDisabled, loadDnd, loadIdleMinutes, loadProxyAuth, loadQuietWorkHours, loadSchedule, loadSplit, saveProxyAuth, saveSchedule, saveSplit, saveQuietWorkHours, loadSelected, loadSidebarCollapsed, saveSidebarCollapsed, loadSidebarLayout, saveSidebarLayout, orderedAccounts, saveDnd, loadTrayHintShown, saveTrayHintShown, saveSelected, setAccountProxy, setIdlePolicy, reorderAccounts, setMuted, setBlurMedia, setBlurPart, setKeepDeleted, setExtensions, setServiceEnabled, setZoom, type Account, type SplitState } from './accounts'
+import { addAccount, editAccount, IDLE_POLICIES, loadAccounts, loadDisabled, loadDnd, loadIdleMinutes, loadProxyAuth, loadQuietWorkHours, loadSchedule, loadSplit, saveProxyAuth, saveSchedule, saveSplit, saveQuietWorkHours, loadSelected, loadSidebarCollapsed, saveSidebarCollapsed, loadLastSettingsTab, saveLastSettingsTab, loadSidebarLayout, saveSidebarLayout, orderedAccounts, saveDnd, loadTrayHintShown, saveTrayHintShown, saveSelected, setAccountProxy, setIdlePolicy, reorderAccounts, setMuted, setBlurMedia, setBlurPart, setKeepDeleted, setExtensions, setServiceEnabled, setZoom, type Account, type SplitState } from './accounts'
 import { logOut, removeAccount } from './accountops'
 import { overlay } from './composite'
 import { cacheFavicon, readIcon, type Fetcher } from './favicon'
@@ -1558,6 +1558,13 @@ function createWindow(): BrowserWindow {
     ]).popup({ window: win })
   })
   gipc.handle('prefs:idle', (e: { sender: { id: number } }, v: unknown) => fromApp(e) && applyIdle(dir, v, triggers))
+  // Settings reopens on the last tab you used (UX-006): a small getter and a save, both only for the app window.
+  gipc.handle('settings:last-tab-get', (e: { sender: { id: number } }) => (fromApp(e) ? loadLastSettingsTab(dir) : undefined))
+  gipc.handle('settings:last-tab', (e: { sender: { id: number } }, tab: unknown) => {
+    if (!fromApp(e)) return false
+    saveLastSettingsTab(dir, tab)
+    return true
+  })
   gipc.handle('prefs:dnd', (e: { sender: { id: number } }, on: unknown) => {
     if (!fromApp(e)) return false
     dnd = !!on

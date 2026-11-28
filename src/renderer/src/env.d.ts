@@ -147,6 +147,9 @@ interface Window {
     schedule(): Promise<LockScheduleRow>
     setSchedule(s: LockScheduleRow): Promise<LockScheduleRow>
     prefs(): Promise<{ idleLock: 5 | 10 | 30 | 'manual'; dnd: boolean; quietWorkHours: boolean; startOnLogin: boolean }>
+    /** Settings reopens on the last tab used (UX-006); missing means Services. */
+    lastSettingsTab(): Promise<string | undefined>
+    saveLastSettingsTab(tab: string): Promise<boolean>
     setIdle(minutes: 5 | 10 | 30 | 'manual'): Promise<boolean>
     /** The lock countdown (D57): time left under the active rule, or null when only manual locking applies. */
     lockCountdown(): Promise<{ ms: number; rule: string } | null>
