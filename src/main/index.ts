@@ -26,7 +26,7 @@ import { appendEvent, LOGIN_COOKIES, lostLogins } from './events'
 import { parseWaPage, readDirSafe, storeHasData, waStorePath, whatsappLoggedIn, WA_PAGE_SCRIPT, type WaPage } from './whatsapp'
 import { writeAtomic } from './atomic'
 import { normalizeSchedule, type LockSchedule } from './schedule'
-import { parseUnread, totalUnread, updateWindowTitle, without } from './unread'
+import { applyBadge, parseUnread, totalUnread, updateWindowTitle, without } from './unread'
 import { createTray } from './tray'
 import { decideNotification, quietOutsideWorkHours } from './notify'
 import { applyPermissionPolicy } from './permissions'
@@ -1541,6 +1541,7 @@ function createWindow(): BrowserWindow {
     }
     const total = totalUnread(counts, enabled().map((a) => a.id))
     tray.setUnread(total, !isUnlocked())
+    applyBadge(app, total, !isUnlocked(), process.platform)
     if (!win.isDestroyed()) updateWindowTitle(win, total, !isUnlocked())
     win.webContents.send('lock:changed', lock.info())
   })
@@ -1549,6 +1550,7 @@ function createWindow(): BrowserWindow {
     const total = totalUnread(counts, enabled().map((a) => a.id))
     const locked = !isUnlocked()
     tray.setUnread(total, locked)
+    applyBadge(app, total, locked, process.platform)
     if (!win.isDestroyed()) updateWindowTitle(win, total, locked)
     if (!win.isDestroyed() && !locked) win.webContents.send('unread:update', counts)
   }

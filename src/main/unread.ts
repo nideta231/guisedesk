@@ -42,3 +42,17 @@ export function updateWindowTitle(win: { setTitle(title: string): void }, total:
   win.setTitle(title)
   return title
 }
+
+/** The launcher/dock badge (UX-012): only Linux and macOS show it, and only while unlocked. */
+export function badgeCount(total: number, locked: boolean, platform: string): number {
+  return !locked && (platform === 'linux' || platform === 'darwin') ? total : 0
+}
+
+/** Sets the badge through a tiny app interface; an unsupported desktop must not throw. */
+export function applyBadge(app: { setBadgeCount(count: number): unknown }, total: number, locked: boolean, platform: string): void {
+  try {
+    app.setBadgeCount(badgeCount(total, locked, platform))
+  } catch {
+    // Some Linux desktops do not implement the badge; ignore it.
+  }
+}

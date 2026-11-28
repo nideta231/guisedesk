@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { formatCount, parseUnread, totalUnread, updateWindowTitle, windowTitle, without } from '../src/main/unread'
+import { applyBadge, badgeCount, formatCount, parseUnread, totalUnread, updateWindowTitle, windowTitle, without } from '../src/main/unread'
 import { presetFor } from '../src/main/presets'
 
 describe('parseUnread', () => {
@@ -53,5 +53,25 @@ describe('window title (UX-011)', () => {
     expect(win.setTitle).toHaveBeenCalledExactlyOnceWith('(7) GuiseDesk')
     updateWindowTitle(win, 7, true)
     expect(win.setTitle).toHaveBeenLastCalledWith('GuiseDesk')
+  })
+})
+
+describe('launcher badge (UX-012)', () => {
+  it('shows the total only on Linux/macOS while unlocked', () => {
+    expect(badgeCount(4, false, 'linux')).toBe(4)
+    expect(badgeCount(4, false, 'darwin')).toBe(4)
+    expect(badgeCount(4, false, 'win32')).toBe(0)
+    expect(badgeCount(4, true, 'linux')).toBe(0)
+    expect(badgeCount(0, false, 'darwin')).toBe(0)
+  })
+
+  it('sets the badge on each push and clears it on lock, and never throws', () => {
+    const app = { setBadgeCount: vi.fn() }
+    applyBadge(app, 4, false, 'linux')
+    expect(app.setBadgeCount).toHaveBeenLastCalledWith(4)
+    applyBadge(app, 4, true, 'linux')
+    expect(app.setBadgeCount).toHaveBeenLastCalledWith(0)
+    const failing = { setBadgeCount: vi.fn(() => { throw new Error('unsupported') }) }
+    expect(() => applyBadge(failing, 4, false, 'linux')).not.toThrow()
   })
 })
