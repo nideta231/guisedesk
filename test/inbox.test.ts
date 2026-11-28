@@ -7,6 +7,7 @@ import {
   filterInbox,
   groupInbox,
   inboxItem,
+  inboxTime,
   markAllRead,
   markRead,
   markUnread,
@@ -103,6 +104,17 @@ describe('notification inbox (D64)', () => {
     expect(groups.map((g) => g.title)).toEqual(['Today', 'Yesterday', 'Tue, 24 Nov 2026'])
     expect(groups[0].items.map((i) => i.id)).toEqual(['today2', 'today'])
     expect(groups[1].items.map((i) => i.id)).toEqual(['yesterday'])
+  })
+
+  it('renders recent items as relative times and older ones as clock times (UX-023)', () => {
+    const now = new Date(2026, 10, 27, 12, 0).getTime()
+    expect(inboxTime(now, now)).toBe('just now')
+    expect(inboxTime(now - 59_000, now)).toBe('just now')
+    expect(inboxTime(now - 60_000, now)).toBe('1 min ago')
+    expect(inboxTime(now - 5 * 60_000, now)).toBe('5 min ago')
+    expect(inboxTime(now - 3 * 3_600_000, now)).toBe('3 h ago')
+    expect(inboxTime(new Date(2026, 10, 27, 1, 5).getTime(), now)).toBe('01:05')
+    expect(inboxTime(new Date(2026, 10, 26, 14, 32).getTime(), now)).toBe('Thu 14:32')
   })
 
   it('round trips through inbox.json with writeAtomic data', () => {

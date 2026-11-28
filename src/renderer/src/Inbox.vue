@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { presetFor } from '../../main/presets'
-import { filterInbox, groupInbox, searchInbox, unreadCount } from '../../main/inbox'
+import { filterInbox, groupInbox, inboxTime, searchInbox, unreadCount } from '../../main/inbox'
 import { initials } from './initials'
 import { useDialogFocus } from './useDialogFocus'
 
@@ -30,7 +30,9 @@ const serviceOf = (id: string) => {
   return a ? presetFor(a.serviceId)?.name ?? a.custom?.name ?? 'Custom site' : ''
 }
 const colourOf = (id: string) => byId.value.get(id)?.colour ?? '#6d5bd0'
-const timeText = (time: number) => new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+// Relative times (UX-023): the dialog reads the clock when it opens; day grouping still comes from the item time.
+const now = Date.now()
+const timeText = (time: number) => inboxTime(time, now)
 // A switched-off service still has old items (UX-042): keep its name, say why a click cannot open it, and send the user
 // to Settings > Services instead of doing nothing.
 const serviceOff = (id: string) => {

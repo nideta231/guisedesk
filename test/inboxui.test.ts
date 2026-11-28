@@ -29,6 +29,24 @@ describe('Inbox dialog (D64)', () => {
     expect(rows[2].classes()).not.toContain('unread')
   })
 
+  it('shows relative times while keeping the day groups (UX-023)', () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date(2026, 10, 27, 12, 0, 0))
+      const clock = Date.now()
+      const rows = [
+        { id: 'r1', accountId: 'a1', title: 'Recent', body: '', time: clock - 5 * 60_000, read: false },
+        { id: 'r2', accountId: 'a1', title: 'Older', body: '', time: new Date(2026, 10, 27, 1, 5).getTime(), read: false },
+        { id: 'r3', accountId: 'a1', title: 'Yesterday', body: '', time: new Date(2026, 10, 26, 14, 32).getTime(), read: true }
+      ]
+      const w = mount(Inbox, { props: { items: rows, accounts } })
+      expect(w.findAll('.day').map((d) => d.text())).toEqual(['Today', 'Yesterday'])
+      expect(w.findAll('.item .time').map((t) => t.text())).toEqual(['5 min ago', '01:05', 'Thu 14:32'])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('filters by account and shows a plain empty state', async () => {
     const w = mount(Inbox, { props: { items, accounts } })
     await w.find('select.filter').setValue('a2')

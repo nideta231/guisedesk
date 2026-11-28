@@ -103,6 +103,22 @@ export interface InboxGroup {
 
 const startOfDay = (d: Date): number => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
 
+const pad2 = (n: number): string => String(n).padStart(2, '0')
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+/** A short relative or clock time for one item (UX-023): just now, 5 min ago, 2 h ago, 14:32, Mon 14:32. */
+export function inboxTime(time: number, now: number): string {
+  const diff = now - time
+  if (diff < 60_000) return 'just now'
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} min ago`
+  if (diff < 6 * 3_600_000) return `${Math.floor(diff / 3_600_000)} h ago`
+  const d = new Date(time)
+  const clock = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+  const n = new Date(now)
+  const sameDay = d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate()
+  return sameDay ? clock : `${WEEKDAYS[d.getDay()]} ${clock}`
+}
+
 const dayFormatter = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
 
 function dayTitle(day: number, now: Date): string {
