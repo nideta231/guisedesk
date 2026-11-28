@@ -55,6 +55,7 @@ import { runBackupWorker } from './backupengine'
 import { addInbox, inboxItem, markAllRead, markRead, unreadCount, type InboxItem } from './inbox'
 import { loadInbox, saveInbox } from './inboxstore'
 import { flushSessions, flushThenClose, sessionKeys } from './sessionlife'
+import { onceMainFrameSettled } from './mainframe'
 
 // Both must run before `ready`. setName first: it resets the default userData path, which setPath then overrides,
 // so sessions and partitions still land in the chosen dir. The name is what notifications and the tray show.
@@ -820,8 +821,7 @@ function show(win: BrowserWindow, a: Account, push: () => void): void {
       push()
       attach(win, v)
     }
-    v.webContents.once('did-finish-load', done)
-    v.webContents.once('did-fail-load', done)
+    onceMainFrameSettled(v.webContents, done)
     push()
     return
   }
