@@ -221,7 +221,24 @@ export async function startKeeper(d: KeeperDeps): Promise<{ stop: () => void } |
       if (!revokedCount) return
       const rows: Element[] = Array.prototype.filter.call(d.doc.querySelectorAll('[data-id]'), (r: Element) => !r.querySelector('.gd-deleted'))
       if (!rows.length) return
-      for (const e of cache.values()) if (e.revoked) renderDeleted(d.doc, e, rows)
+      // One pass builds the lookup; a chat with many deleted messages is no longer revoked x rows.
+      const index = new Map<string, Element[]>()
+      for (const r of rows) {
+        const key = r.getAttribute('data-id') || ''
+        const hits = index.get(key)
+        if (hits) hits.push(r)
+        else index.set(key, [r])
+      }
+      const misses: Entry[] = []
+      for (const e of cache.values()) {
+        if (!e.revoked) continue
+        const hits = index.get(e.id)
+        if (hits) renderDeleted(d.doc, e, hits)
+        else misses.push(e)
+      }
+      // Legacy rows whose data-id only contains the id (a prefix or suffix) still match, but only for entries
+      // that found no exact row.
+      for (const e of misses) renderDeleted(d.doc, e, rows)
     }
     const take = (m: any) => {
       try {

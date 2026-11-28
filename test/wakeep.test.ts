@@ -166,6 +166,28 @@ describe('startKeeper', () => {
     expect(qsa).toHaveBeenCalled()
   })
 
+  it('indexes rows once for 50 deleted messages and still matches a prefixed data-id', async () => {
+    const entries: Entry[] = []
+    const html = ['<div id="main">']
+    for (let i = 0; i < 49; i++) {
+      const id = `msg-${i}`
+      entries.push({ id, chat: 'c', from: 'f', t: NOW - DAY, type: 'chat', text: id, caption: '', revoked: NOW - DAY })
+      html.push(`<div data-id="${id}" class="row"><span>x</span></div>`)
+    }
+    entries.push({ id: 'msg-49', chat: 'c', from: 'f', t: NOW - DAY, type: 'chat', text: 'msg-49', caption: '', revoked: NOW - DAY })
+    html.push('<div data-id="false_msg-49@c.us_X" class="legacy"><span>x</span></div>')
+    for (let i = 0; i < 50; i++) html.push(`<div data-id="other-${i}" class="other"><span>x</span></div>`)
+    html.push('</div>')
+    document.body.innerHTML = html.join('')
+    const qsa = vi.spyOn(document, 'querySelectorAll')
+    const k = await start(new FakeColl(), memStore(entries))
+    expect(qsa).toHaveBeenCalledTimes(1)
+    expect(document.querySelectorAll('.gd-deleted').length).toBe(50)
+    for (const r of document.querySelectorAll('.row')) expect(r.querySelectorAll('.gd-deleted').length).toBe(1)
+    expect(document.querySelector('.legacy .gd-deleted')?.textContent).toContain('msg-49')
+    k?.stop()
+  })
+
   it('store not found: one warning, state unavailable, nothing thrown', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const states: string[] = []
