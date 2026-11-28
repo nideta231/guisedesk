@@ -48,6 +48,11 @@ export function markAllRead(items: InboxItem[]): InboxItem[] {
   return items.map((i) => (i.read ? i : { ...i, read: true }))
 }
 
+/** Marks one read item unread again (UX-022); other rows are untouched. */
+export function markUnread(items: InboxItem[], id: string): InboxItem[] {
+  return items.map((i) => (i.id === id && i.read ? { ...i, read: false } : i))
+}
+
 /** Unread items whose account is not muted (D19, D64). */
 export function unreadCount(items: InboxItem[], mutedIds: Iterable<string>): number {
   const muted = new Set(mutedIds)

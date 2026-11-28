@@ -397,6 +397,11 @@ async function pickInbox(accountId: string, itemId: string) {
   if (accounts.value.some((a) => a.id === accountId)) select(accountId)
 }
 
+async function markInboxUnread(id: string) {
+  const box = await window.guisedesk.inboxUnread(id)
+  if (box) inbox.value = box
+}
+
 async function readAllInbox() {
   const box = await window.guisedesk.inboxReadAll()
   if (box) inbox.value = box
@@ -554,7 +559,7 @@ async function add(input: Parameters<Window['guisedesk']['add']>[0]) {
     <LinkChooser v-if="choosing" :url="choosing.url" :candidates="choosing.candidates" @choose="chosen" />
     <AddAccount v-if="adding" :accounts="accounts" :server-error="addError" @add="add" @cancel="closeAdd" />
     <QuickSwitcher v-if="switcherOpen" :accounts="shown" @choose="pickSwitcher" @close="closeSwitcher" />
-    <Inbox v-if="inboxOpen" :items="inbox.items" :accounts="shown" @select="pickInbox" @read-all="readAllInbox" @clear="clearInbox" @close="closeInbox" />
+    <Inbox v-if="inboxOpen" :items="inbox.items" :accounts="shown" @select="pickInbox" @unread="markInboxUnread" @read-all="readAllInbox" @clear="clearInbox" @close="closeInbox" />
     <ShortcutHelp v-if="helpOpen" @close="closeHelp" />
   </div>
 </template>

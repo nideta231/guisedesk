@@ -9,6 +9,7 @@ import {
   inboxItem,
   markAllRead,
   markRead,
+  markUnread,
   MAX_INBOX,
   normalizeInbox,
   searchInbox,
@@ -56,6 +57,13 @@ describe('notification inbox (D64)', () => {
     expect(markRead(items, 'b').map((i) => i.read)).toEqual([false, true, false])
     expect(markRead(items, 'nope').map((i) => i.read)).toEqual([false, false, false])
     expect(markAllRead(items).every((i) => i.read)).toBe(true)
+  })
+
+  it('marks only the chosen read item unread again', () => {
+    const items = [item('a', 3, { read: true }), item('b', 2, { read: true }), item('c', 1)]
+    expect(markUnread(items, 'a').map((i) => i.read)).toEqual([false, true, false])
+    expect(markUnread(items, 'c').map((i) => i.read)).toEqual([true, true, false])
+    expect(markUnread(items, 'nope').map((i) => i.read)).toEqual([true, true, false])
   })
 
   it('counts unread items but not a muted account, and keeps muted items in the list', () => {

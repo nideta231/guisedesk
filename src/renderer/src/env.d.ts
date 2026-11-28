@@ -161,6 +161,8 @@ interface Window {
     /** Notifications inbox (D64): newest first, kept in main; muted accounts are kept but not counted. */
     inbox(): Promise<InboxSnapshot>
     inboxRead(id: string): Promise<InboxSnapshot>
+    /** Mark a read item unread again (UX-022); the dialog stays open. */
+    inboxUnread(id: string): Promise<InboxSnapshot>
     inboxReadAll(): Promise<InboxSnapshot>
     inboxClear(): Promise<InboxSnapshot>
     onInbox(cb: (s: InboxSnapshot) => void): Unsubscribe

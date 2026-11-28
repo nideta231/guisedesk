@@ -5,7 +5,7 @@ import { filterInbox, groupInbox, searchInbox, unreadCount } from '../../main/in
 import { initials } from './initials'
 
 const props = defineProps<{ items: InboxItem[]; accounts: AccountRow[] }>()
-const emit = defineEmits<{ close: []; select: [accountId: string, itemId: string]; 'read-all': []; clear: [] }>()
+const emit = defineEmits<{ close: []; select: [accountId: string, itemId: string]; unread: [id: string]; 'read-all': []; clear: [] }>()
 
 const filter = ref('')
 const search = ref('')
@@ -46,21 +46,26 @@ const timeText = (time: number) => new Date(time).toLocaleTimeString([], { hour:
       <div class="list">
         <template v-for="g in groups" :key="g.title">
           <div class="day">{{ g.title }}</div>
-          <button
+          <div
             v-for="i in g.items"
             :key="i.id"
             class="item"
             :class="{ unread: !i.read }"
+            role="button"
+            tabindex="0"
             @click="emit('select', i.accountId, i.id)"
+            @keydown.enter="emit('select', i.accountId, i.id)"
+            @keydown.space.prevent="emit('select', i.accountId, i.id)"
           >
-            <span class="dot" :class="{ off: i.read }"></span>
+            <button v-if="i.read" class="dot off" type="button" title="Mark unread" aria-label="Mark unread" @click.stop="emit('unread', i.id)"></button>
+            <span v-else class="dot"></span>
             <span class="av" :style="{ background: colourOf(i.accountId) }">{{ initials(labelOf(i.accountId)) }}</span>
             <span class="content">
               <span class="meta"><b>{{ labelOf(i.accountId) }}</b><small>{{ serviceOf(i.accountId) }}</small><span class="time">{{ timeText(i.time) }}</span></span>
               <span class="title">{{ i.title }}</span>
               <span v-if="i.body" class="body">{{ i.body }}</span>
             </span>
-          </button>
+          </div>
         </template>
         <div v-if="!groups.length" class="hint none">{{ search.trim() ? 'No notifications match.' : filter ? 'No notifications for this account.' : 'No notifications yet.' }}</div>
       </div>
@@ -79,8 +84,9 @@ const timeText = (time: number) => new Date(time).toLocaleTimeString([], { hour:
 .day:first-child { margin-top: 4px; }
 .item { display: flex; align-items: flex-start; gap: 9px; width: 100%; text-align: left; padding: 8px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: inherit; cursor: pointer; }
 .item:hover { background: #ffffff10; }
-.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; margin-top: 10px; }
-.dot.off { background: transparent; box-shadow: inset 0 0 0 1px #ffffff2a; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; margin-top: 10px; padding: 0; border: 0; }
+.dot.off { background: transparent; box-shadow: inset 0 0 0 1px #ffffff2a; cursor: pointer; }
+.dot.off:hover { box-shadow: inset 0 0 0 1px var(--text); }
 .item .av { width: 26px; height: 26px; font-size: 9.5px; }
 .content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .meta { display: flex; align-items: baseline; gap: 6px; font-size: 11.5px; }

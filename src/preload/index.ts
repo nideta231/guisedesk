@@ -144,6 +144,7 @@ if (service) {
     listen('unread:update', cb),
   inbox: () => ipcRenderer.invoke('inbox:get'),
   inboxRead: (id: string) => ipcRenderer.invoke('inbox:read', id),
+  inboxUnread: (id: string) => ipcRenderer.invoke('inbox:unread', id),
   inboxReadAll: () => ipcRenderer.invoke('inbox:read-all'),
   inboxClear: () => ipcRenderer.invoke('inbox:clear'),
   onInbox: (cb: (s: unknown) => void) => listen('inbox:update', cb),

@@ -52,7 +52,7 @@ import { clampSide, clampSplit, isSidebarShortcut, panelBounds as layoutBounds, 
 import { applyPendingRestore } from './backup'
 import { backupFileName } from './backuprules'
 import { runBackupWorker } from './backupengine'
-import { addInbox, inboxItem, markAllRead, markRead, unreadCount, type InboxItem } from './inbox'
+import { addInbox, inboxItem, markAllRead, markRead, markUnread, unreadCount, type InboxItem } from './inbox'
 import { createInboxSaver, loadInbox, saveInbox } from './inboxstore'
 import { flushSessions, flushThenClose, sessionKeys } from './sessionlife'
 import { collectLogins, createLoginScheduler } from './logincheck'
@@ -1585,6 +1585,13 @@ function createWindow(): BrowserWindow {
   gipc.handle('inbox:read', (e: { sender: { id: number } }, id: unknown) => {
     if (!fromApp(e) || typeof id !== 'string') return undefined
     inbox = markRead(inbox, id)
+    inboxSaver.save(inbox)
+    pushInbox()
+    return inboxView()
+  })
+  gipc.handle('inbox:unread', (e: { sender: { id: number } }, id: unknown) => {
+    if (!fromApp(e) || typeof id !== 'string') return undefined
+    inbox = markUnread(inbox, id)
     inboxSaver.save(inbox)
     pushInbox()
     return inboxView()

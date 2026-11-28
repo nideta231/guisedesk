@@ -67,6 +67,15 @@ describe('Inbox dialog (D64)', () => {
     expect(w.emitted('clear')).toHaveLength(1)
   })
 
+  it('a read row has a Mark unread dot that emits unread without selecting the account', async () => {
+    const w = mount(Inbox, { props: { items, accounts } })
+    expect(w.findAll('.item')[2].classes()).not.toContain('unread')
+    expect(w.findAll('.item')[0].find('button.dot').exists()).toBe(false)
+    await w.findAll('.item')[2].find('button.dot').trigger('click')
+    expect(w.emitted('unread')).toEqual([['i3']])
+    expect(w.emitted('select')).toBeUndefined()
+  })
+
   it('closes on X, Esc and a click outside', async () => {
     const w = mount(Inbox, { props: { items, accounts }, attachTo: document.body })
     await w.find('.x').trigger('click')
@@ -146,6 +155,45 @@ describe('App inbox wiring (D64)', () => {
     await w.findAll('.bar .btn')[1].trigger('click')
     await flushPromises()
     expect(inboxClear).toHaveBeenCalled()
+  })
+})
+
+describe('App inbox mark unread (UX-022)', () => {
+  it('calls main, keeps the dialog open and the row returns to the unread style', async () => {
+    const inboxUnread = vi.fn(async () => ({ items: items.map((i) => (i.id === 'i3' ? { ...i, read: false } : i)), unread: 1 }))
+    ;(window as unknown as { guisedesk: unknown }).guisedesk = {
+      lockState: async () => ({ state: 'unlocked' }),
+      onLock: () => {},
+      state: async () => ({ accounts, selectedId: 'a1', disabledServices: [] }),
+      unread: async () => ({}),
+      onUnread: () => {},
+      inbox: async () => ({ items, unread: 2 }),
+      inboxUnread,
+      onInbox: () => {},
+      onSelected: () => {},
+      onOpenSettings: () => {},
+      sleep: async () => ({}),
+      onSleep: () => {},
+      select: vi.fn(),
+      dialog: () => {},
+      onSidebar: () => {},
+      onZoom: () => {},
+      onLinkChoose: () => {},
+      onRowMenuPick: () => {},
+      onUpdate: () => {},
+      updateState: async () => ({ state: 'none' })
+    }
+    const w = mount(App)
+    await flushPromises()
+    await w.find('.foot .bell').trigger('click')
+    await flushPromises()
+    const row = w.findAll('.inbox .item')[2]
+    expect(row.classes()).not.toContain('unread')
+    await row.find('button.dot').trigger('click')
+    await flushPromises()
+    expect(inboxUnread).toHaveBeenCalledExactlyOnceWith('i3')
+    expect(w.find('.inbox').exists()).toBe(true)
+    expect(w.findAll('.inbox .item')[2].classes()).toContain('unread')
   })
 })
 
