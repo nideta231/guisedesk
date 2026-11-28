@@ -264,3 +264,31 @@ describe('App sidebar state', () => {
     expect(a.find('.side').classes()).toContain('mini')
   })
 })
+
+describe('row menu Reload (UX-002)', () => {
+  it('offers Reload for an awake account and for an asleep one', async () => {
+    const { rowMenuItems } = await import('../src/main/contextmenu')
+    expect(rowMenuItems({ muted: false, asleep: false }).map((i) => i.action)).toContain('reload')
+    expect(rowMenuItems({ muted: false, asleep: true }).map((i) => i.action)).toContain('reload')
+    expect(rowMenuItems({ muted: true, asleep: true }).find((i) => i.action === 'reload')?.label).toBe('Reload')
+  })
+
+  it('a reload pick calls the bridge once with the id and emits neither mute nor sleep', async () => {
+    let pick: (p: { id: string; action: string }) => void = () => {}
+    const reload = vi.fn()
+    ;(window as unknown as { guisedesk: unknown }).guisedesk = {
+      rowMenu: vi.fn(),
+      onRowMenuPick: (cb: typeof pick) => {
+        pick = cb
+        return () => {}
+      },
+      reload
+    }
+    const w = mount(Sidebar, { props: { accounts } })
+    pick({ id: 'wa1', action: 'reload' })
+    expect(reload).toHaveBeenCalledOnce()
+    expect(reload).toHaveBeenCalledWith('wa1')
+    expect(w.emitted('mute')).toBeUndefined()
+    expect(w.emitted('sleep')).toBeUndefined()
+  })
+})

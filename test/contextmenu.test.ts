@@ -65,17 +65,19 @@ describe('buildContextMenu', () => {
 })
 
 describe('rowMenuItems (D41)', () => {
-  it('lists Mute, Sleep now, Account settings for an awake unmuted account', () => {
+  it('lists Mute, Reload, Sleep now, Account settings for an awake unmuted account', () => {
     expect(rowMenuItems({ muted: false, asleep: false })).toEqual([
       { action: 'mute', label: 'Mute' },
+      { action: 'reload', label: 'Reload' },
       { action: 'sleep', label: 'Sleep now' },
       { action: 'account', label: 'Account settings' }
     ])
   })
 
-  it('says Unmute for a muted account and drops Sleep now for an asleep one', () => {
+  it('says Unmute for a muted account, keeps Reload asleep and drops Sleep now', () => {
     expect(rowMenuItems({ muted: true, asleep: true })).toEqual([
       { action: 'mute', label: 'Unmute' },
+      { action: 'reload', label: 'Reload' },
       { action: 'account', label: 'Account settings' }
     ])
   })

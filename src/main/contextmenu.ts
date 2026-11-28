@@ -64,6 +64,7 @@ export function buildContextMenu(p: MenuParams, s: MenuState): MenuEntry[] {
 export function rowMenuItems(s: { muted: boolean; asleep: boolean }): { action: string; label: string }[] {
   return [
     { action: 'mute', label: s.muted ? 'Unmute' : 'Mute' },
+    { action: 'reload', label: 'Reload' },
     ...(s.asleep ? [] : [{ action: 'sleep', label: 'Sleep now' }]),
     { action: 'account', label: 'Account settings' }
   ]
