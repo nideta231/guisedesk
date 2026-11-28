@@ -117,7 +117,7 @@ onBeforeUnmount(() => {
       <div class="brand"><BrandMark :size="40" />GuiseDesk</div>
       <div class="hint">Locked &middot; your accounts are still running</div>
       <template v-if="kind === 'pin'">
-        <div class="dots"><i v-for="n in length" :key="n" :class="{ f: n <= entry.length }"></i></div>
+        <div class="dots" role="status" :aria-label="`${entry.length} of ${length} digits entered`"><i v-for="n in length" :key="n" aria-hidden="true" :class="{ f: n <= entry.length }"></i></div>
         <div class="pad">
           <button v-for="d in ['1', '2', '3', '4', '5', '6', '7', '8', '9']" :key="d" :disabled="waiting" @click="digit(d)">{{ d }}</button>
           <button class="gh" @click="emit('forgot')">Forgot</button>

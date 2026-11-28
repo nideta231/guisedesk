@@ -53,6 +53,19 @@ describe('LockScreen (PIN)', () => {
     expect(b.unlock).toHaveBeenCalledExactlyOnceWith('123456')
   })
 
+  it('announces how many digits have been entered and lowers it on Delete (UX-030)', async () => {
+    install()
+    w = mount(LockScreen, { props: { kind: 'pin', pinLength: 6 } })
+    const status = w.find('.dots[role="status"]')
+    expect(status.attributes('aria-label')).toBe('0 of 6 digits entered')
+    expect(w.findAll('.dots i').every((s) => s.attributes('aria-hidden') === 'true')).toBe(true)
+    await pad(w, '1').trigger('click')
+    await pad(w, '2').trigger('click')
+    expect(status.attributes('aria-label')).toBe('2 of 6 digits entered')
+    await pad(w, 'Delete').trigger('click')
+    expect(status.attributes('aria-label')).toBe('1 of 6 digits entered')
+  })
+
   it('wrong entry shakes, clears and says it was wrong until the next digit', async () => {
     install()
     w = mount(LockScreen, { props: { kind: 'pin', pinLength: 6 } })
