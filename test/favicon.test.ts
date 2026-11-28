@@ -22,6 +22,13 @@ describe('favicon cache', () => {
     expect(readIcon(dir, icon)).toBe(`data:image/png;base64,${Buffer.from(png).toString('base64')}`)
   })
 
+  it('caches an icon for an IPv6 custom site under a slug that readIcon accepts', async () => {
+    const dir = tmp()
+    const icon = await cacheFavicon(dir, 'http://[::1]:8080/', async () => ({ contentType: 'image/png', bytes: png }))
+    expect(icon).toBe('icons/___1_.png')
+    expect(readIcon(dir, icon)).toBe(`data:image/png;base64,${Buffer.from(png).toString('base64')}`)
+  })
+
   it('writes the icon atomically: a failed rename leaves no new icon and the previous one intact', async () => {
     const dir = tmp()
     const first = await cacheFavicon(dir, 'https://a.example.com/', async () => ({ contentType: 'image/png', bytes: png }))
