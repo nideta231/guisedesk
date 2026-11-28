@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { doneNotice, loadDownloads, saveDownloads, uniquePath } from '../src/main/downloads'
+import { doneNotice, downloadOutcome, loadDownloads, saveDownloads, uniquePath } from '../src/main/downloads'
 
 describe('downloads settings', () => {
   it('defaults to ask off and no folder; round-trip keeps other settings.json keys', () => {
@@ -31,6 +31,14 @@ describe('uniquePath', () => {
     expect(uniquePath('/d', '.bashrc', none)).toBe('/d/bashrc')
     expect(uniquePath('/d', '', none)).toBe('/d/download')
     expect(uniquePath('/d', '...', none)).toBe('/d/download')
+  })
+})
+
+describe('downloadOutcome', () => {
+  it('keeps a user cancel silent, reports a completed download as ok and an interruption as failed', () => {
+    expect(downloadOutcome('cancelled')).toBe('silent')
+    expect(downloadOutcome('completed')).toBe('ok')
+    expect(downloadOutcome('interrupted')).toBe('failed')
   })
 })
 

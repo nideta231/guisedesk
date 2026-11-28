@@ -41,7 +41,7 @@ import { applyIdle } from './prefs'
 import { checkForUpdate, realRun, type UpdateInfo } from './updater'
 import { version } from '../../package.json'
 import { buildContextMenu, rowMenuItems } from './contextmenu'
-import { doneNotice, loadDownloads, saveDownloads, uniquePath } from './downloads'
+import { doneNotice, downloadOutcome, loadDownloads, saveDownloads, uniquePath } from './downloads'
 import { isHelpShortcut, isSwitcherShortcut, nextZoom, switchTarget, zoomKey, type KeyInput } from './shortcuts'
 import { sidebarOrder } from './services'
 import { PARTS, partsOn, type Part } from '../preload/blur'
@@ -631,8 +631,10 @@ function hookDownloads(ses: Electron.Session): void {
     if (s.ask) item.setSaveDialogOptions({ defaultPath: uniquePath(folder, name, existsSync) })
     else item.setSavePath(uniquePath(folder, name, existsSync))
     item.once('done', (_ev, state) => {
+      const outcome = downloadOutcome(state)
+      if (outcome === 'silent') return
       const path = item.getSavePath()
-      onDownloadDone(state === 'completed', path)
+      onDownloadDone(outcome === 'ok', path)
     })
   })
 }

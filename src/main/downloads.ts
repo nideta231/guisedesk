@@ -44,6 +44,12 @@ export function uniquePath(dir: string, name: string, exists: (path: string) => 
   return p
 }
 
+/** How a finished download is reported: a user cancel is silent, a completed one is ok, anything else failed. */
+export function downloadOutcome(state: string): 'ok' | 'failed' | 'silent' {
+  if (state === 'cancelled') return 'silent'
+  return state === 'completed' ? 'ok' : 'failed'
+}
+
 /** Text of the finished notification. Locked hides the file name. */
 export function doneNotice(s: { ok: boolean; file: string; locked: boolean }): { title: string; body: string } {
   if (!s.ok) return { title: 'Download failed', body: '' }
