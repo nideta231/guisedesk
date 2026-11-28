@@ -56,6 +56,7 @@ import { addInbox, inboxItem, markAllRead, markRead, unreadCount, type InboxItem
 import { loadInbox, saveInbox } from './inboxstore'
 import { flushSessions, flushThenClose, sessionKeys } from './sessionlife'
 import { onceMainFrameSettled } from './mainframe'
+import { watchViewHealth } from './viewhealth'
 
 // Both must run before `ready`. setName first: it resets the default userData path, which setPath then overrides,
 // so sessions and partitions still land in the chosen dir. The name is what notifications and the tray show.
@@ -707,6 +708,22 @@ function viewFor(a: Account): WebContentsView {
     v.webContents.setUserAgent(preset?.userAgent ?? CHROME_UA)
     hookLinks(v, a)
     hookContextMenu(v.webContents)
+    // A crashed renderer self-heals once; a hung one offers a reload instead of staying frozen (BG-020).
+    const healthWc = v.webContents
+    watchViewHealth(healthWc, {
+      reload: () => {
+        if (!healthWc.isDestroyed()) healthWc.reload()
+      },
+      notify: () => {
+        if (!Notification.isSupported()) return
+        const n = new Notification({ title: `${a.label} is not responding`, body: 'Click to reload the account.' })
+        n.on('click', () => {
+          if (!healthWc.isDestroyed()) healthWc.reload()
+        })
+        n.show()
+      },
+      log: (line) => appendEvent(dir, `${a.label}: ${line}`)
+    })
     // Saved zoom (D32): applied now and again after each load (a new origin starts at 100%).
     v.webContents.setZoomLevel(a.zoom ?? 0)
     v.webContents.on('dom-ready', () => v!.webContents.setZoomLevel(owner.get(v!.webContents.id)?.zoom ?? 0))
