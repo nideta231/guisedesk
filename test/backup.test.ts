@@ -67,6 +67,12 @@ describe('backup format (D61)', () => {
     expect(allowedRestorePath('/etc/passwd')).toBe(false)
     expect(allowedRestorePath('Partitions/../x')).toBe(false)
     expect(allowedRestorePath('Partitions/w1\\Cookies')).toBe(false)
+    expect(allowedRestorePath('Partitions/a\u0000b')).toBe(false)
+    expect(allowedRestorePath('accounts.json\n')).toBe(false)
+    expect(allowedRestorePath('Partitions/a\u001fb/Cookies')).toBe(false)
+    expect(allowedRestorePath('Partitions/' + 'a'.repeat(256) + '/Cookies')).toBe(false)
+    expect(allowedRestorePath('Partitions/w1/IndexedDB/x.indexeddb.leveldb')).toBe(true)
+    expect(allowedRestorePath('Partitions/w1/' + 'a'.repeat(255))).toBe(true)
   })
 })
 

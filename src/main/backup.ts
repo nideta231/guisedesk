@@ -175,7 +175,8 @@ export function decryptBackup(password: string, file: Buffer): Buffer {
 export function allowedRestorePath(path: string): boolean {
   if (!path || path.includes('\\') || path.startsWith('/')) return false
   const parts = path.split('/')
-  if (parts.some((p) => !p || p === '.' || p === '..')) return false
+  // NUL and other C0 control characters would make the write throw halfway; an over-long segment is not a real name.
+  if (parts.some((p) => !p || p === '.' || p === '..' || /[\u0000-\u001f]/.test(p) || Buffer.byteLength(p, 'utf8') > 255)) return false
   if (parts.length === 1) return parts[0] === 'accounts.json' || parts[0] === 'settings.json' || parts[0] === 'lock.json'
   return parts[0] === 'Partitions' && parts.length > 1
 }
