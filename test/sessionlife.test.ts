@@ -64,4 +64,12 @@ describe('flushThenClose', () => {
     await flushThenClose(view, seen)
     expect(order).toEqual(['storage', 'flush', 'close', 'close'])
   })
+
+  it('flushes again on a later sleep of the same session when no seen set is shared', async () => {
+    const order: string[] = []
+    const view = { webContents: { session: fakeSession(order), close: () => { order.push('close') } } }
+    await flushThenClose(view)
+    await flushThenClose(view)
+    expect(order).toEqual(['storage', 'flush', 'close', 'storage', 'flush', 'close'])
+  })
 })

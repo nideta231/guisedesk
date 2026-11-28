@@ -110,8 +110,6 @@ Menu.setApplicationMenu(null)
 const devTools = process.env.GUISEDESK_DEV === '1'
 
 const views = new Map<string, WebContentsView>()
-// A session is flushed once even if quit and sleep both touch it.
-const flushedSessions = new WeakSet<object>()
 let attached: WebContentsView | undefined
 // Split view (D62): the selected account stays `attached`; `second` is the side-by-side account.
 let second: WebContentsView | undefined
@@ -860,7 +858,9 @@ function sleepAccount(a: Account, minutes = limitMinutes(a) ?? 0): void {
     owner.delete(v.webContents.id)
     views.delete(a.id)
     // A login or recent message written in the last seconds must reach the partition before the view goes.
-    void flushThenClose(v, flushedSessions)
+    // No shared seen set: Electron reuses one Session object per partition, so app-wide dedupe would skip
+    // every sleep after the first. flushThenClose dedupes within this one operation only.
+    void flushThenClose(v)
   }
   sleepState[a.id] = { minutes, waking: false }
 }
