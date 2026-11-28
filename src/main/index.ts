@@ -28,7 +28,7 @@ import { writeAtomic } from './atomic'
 import { normalizeSchedule, type LockSchedule } from './schedule'
 import { applyBadge, parseUnread, totalUnread, updateWindowTitle, without } from './unread'
 import { createTray } from './tray'
-import { bulkTargets } from './traymenu'
+import { bulkTargets, trayUnreadItems } from './traymenu'
 import { decideNotification, notificationClickTarget, quietOutsideWorkHours } from './notify'
 import { applyPermissionPolicy } from './permissions'
 import { createHibernator, launchAsleep, limitMinutes } from './hibernate'
@@ -1042,7 +1042,11 @@ function createWindow(): BrowserWindow {
     dnd = on
     saveDnd(dir, on)
     if (!win.isDestroyed() && isUnlocked()) win.webContents.send('prefs:dnd-changed', on)
-  }, reloadAllAccounts, sleepAllAccounts)
+  }, reloadAllAccounts, sleepAllAccounts, (id) => {
+    // Tray Unread row (UX-034): the same path as a notification click raises the window and selects the account.
+    const a = enabled().find((x) => x.id === id)
+    if (a) selectFromNotification(a)
+  })
   // Close hides to the tray; only quitting (tray Quit, session end) really closes.
   // The first close explains this once (UX-032); the notice is generic, so it is safe while locked.
   win.on('close', (e) => {
@@ -1640,7 +1644,7 @@ function createWindow(): BrowserWindow {
       win.webContents.focus()
     }
     const total = totalUnread(counts, enabled().map((a) => a.id))
-    tray.setUnread(total, !isUnlocked())
+    tray.setUnread(total, !isUnlocked(), trayUnreadItems(counts, enabled()))
     applyBadge(app, total, !isUnlocked(), process.platform)
     if (!win.isDestroyed()) updateWindowTitle(win, total, !isUnlocked())
     win.webContents.send('lock:changed', lock.info())
@@ -1649,7 +1653,7 @@ function createWindow(): BrowserWindow {
   const push = () => {
     const total = totalUnread(counts, enabled().map((a) => a.id))
     const locked = !isUnlocked()
-    tray.setUnread(total, locked)
+    tray.setUnread(total, locked, trayUnreadItems(counts, enabled()))
     applyBadge(app, total, locked, process.platform)
     if (!win.isDestroyed()) updateWindowTitle(win, total, locked)
     if (!win.isDestroyed() && !locked) win.webContents.send('unread:update', counts)

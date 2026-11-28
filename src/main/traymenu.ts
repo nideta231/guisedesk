@@ -1,4 +1,6 @@
 // Tray menu template (D4, D19). Plain TS: no electron import, so it is testable.
+import { sidebarOrder } from './services'
+
 export interface TrayMenuItem {
   label?: string
   accelerator?: string
@@ -6,11 +8,21 @@ export interface TrayMenuItem {
   registerAccelerator?: boolean
   type?: 'checkbox' | 'separator'
   checked?: boolean
+  submenu?: TrayMenuItem[]
   click?: (item: { checked: boolean }) => void
+}
+
+/** One account row in the tray's Unread submenu (UX-034). */
+export interface TrayUnreadItem {
+  id: string
+  label: string
+  count: number
 }
 
 export interface TrayActions {
   dnd: boolean
+  unread?: TrayUnreadItem[]
+  onUnread?: (id: string) => void
   onLock: () => void
   onShow: () => void
   onSettings: () => void
@@ -20,11 +32,31 @@ export interface TrayActions {
   onQuit: () => void
 }
 
+/** The accounts with unread messages, in sidebar order; a switched-off service is left out (UX-034, BG-016). */
+export function trayUnreadItems<T extends { id: string; label: string; serviceId: string; order: number; enabled?: boolean }>(
+  counts: Record<string, number>,
+  accounts: T[]
+): TrayUnreadItem[] {
+  return sidebarOrder(accounts.filter((a) => a.enabled !== false && (counts[a.id] ?? 0) > 0)).map((a) => ({
+    id: a.id,
+    label: a.label,
+    count: counts[a.id]
+  }))
+}
+
 export function trayTemplate(o: TrayActions): TrayMenuItem[] {
   return [
     { label: 'Show GuiseDesk', click: o.onShow },
     { label: 'Lock now', accelerator: 'Ctrl+L', registerAccelerator: false, click: o.onLock },
     { label: 'Do Not Disturb', type: 'checkbox', checked: o.dnd, click: (m) => o.onDnd(m.checked) },
+    ...(o.unread?.length
+      ? [
+          {
+            label: `Unread (${o.unread.reduce((n, u) => n + u.count, 0)})`,
+            submenu: o.unread.map((u) => ({ label: `${u.label} (${u.count})`, click: () => o.onUnread?.(u.id) }))
+          }
+        ]
+      : []),
     { type: 'separator' },
     { label: 'Reload all accounts', click: o.onReloadAll },
     { label: 'Sleep all accounts', click: o.onSleepAll },

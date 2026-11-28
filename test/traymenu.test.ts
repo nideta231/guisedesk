@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { bulkTargets, trayChange, trayLook, trayTemplate, type TrayActions } from '../src/main/traymenu'
+import { bulkTargets, trayChange, trayLook, trayTemplate, trayUnreadItems, type TrayActions } from '../src/main/traymenu'
 
 const opts = (over: Partial<TrayActions> = {}): TrayActions => ({
   dnd: false,
@@ -62,6 +62,34 @@ describe('bulkTargets (UX-033)', () => {
 
   it('reload includes every enabled account, even the selected one', () => {
     expect(bulkTargets(rows, 'a', 'reload').map((a) => a.id)).toEqual(['a', 'b'])
+  })
+})
+
+describe('trayUnreadItems (UX-034)', () => {
+  const accounts = [
+    { id: 'a', label: 'Personal', serviceId: 'whatsapp', order: 0 },
+    { id: 'b', label: 'Work', serviceId: 'discord', order: 1 },
+    { id: 'c', label: '@ben', serviceId: 'x', order: 2 },
+    { id: 'd', label: 'Off', serviceId: 'instagram', order: 3, enabled: false }
+  ]
+
+  it('lists the accounts with a count in sidebar order, leaving out zero and disabled ones', () => {
+    expect(trayUnreadItems({ a: 2, b: 0, c: 5, d: 9 }, accounts)).toEqual([
+      { id: 'a', label: 'Personal', count: 2 },
+      { id: 'c', label: '@ben', count: 5 }
+    ])
+    expect(trayUnreadItems({ a: 0, b: 0, c: 0 }, accounts)).toEqual([])
+  })
+
+  it('builds an Unread submenu whose rows carry the account id', () => {
+    const onUnread = vi.fn()
+    const items = trayUnreadItems({ a: 2, c: 5 }, accounts)
+    const t = trayTemplate(opts({ unread: items, onUnread }))
+    const menu = t.find((i) => i.label === 'Unread (7)')!
+    expect(menu.submenu!.map((s) => s.label)).toEqual(['Personal (2)', '@ben (5)'])
+    menu.submenu![1].click!({ checked: false })
+    expect(onUnread).toHaveBeenCalledWith('c')
+    expect(trayTemplate(opts({ unread: [] })).find((i) => i.label?.startsWith('Unread'))).toBeUndefined()
   })
 })
 
