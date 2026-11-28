@@ -55,7 +55,7 @@ import { runBackupWorker } from './backupengine'
 import { addInbox, inboxItem, markAllRead, markRead, unreadCount, type InboxItem } from './inbox'
 import { createInboxSaver, loadInbox, saveInbox } from './inboxstore'
 import { flushSessions, flushThenClose, sessionKeys } from './sessionlife'
-import { createLoginScheduler } from './logincheck'
+import { collectLogins, createLoginScheduler } from './logincheck'
 import { onceMainFrameSettled } from './mainframe'
 import { watchViewHealth } from './viewhealth'
 
@@ -2156,22 +2156,22 @@ async function checkLogins(): Promise<void> {
     let prev: Record<string, boolean> = {}
     try { prev = JSON.parse(readFileSync(file, 'utf8')) } catch { /* first run */ }
     const accounts = loadAccounts(dir)
-    const now: Record<string, boolean> = {}
-    for (const a of accounts) {
-      if (a.serviceId === 'whatsapp') {
+    // Every account's state is gathered at once: a startup check should take the slowest account, not the sum.
+    const now = await collectLogins(accounts, {
+      whatsapp: async (a) => {
         const store = storeHasData(readDirSafe(waStorePath(dir, partitionKey(a))))
         const v = views.get(a.id)
         const page = v && !v.webContents.isDestroyed() ? await whatsappPage(v.webContents) : undefined
-        const state = whatsappLoggedIn(store, page)
-        if (state !== undefined) now[a.id] = state
-        continue
+        return whatsappLoggedIn(store, page)
+      },
+      cookie: async (a) => {
+        const rule = LOGIN_COOKIES[a.serviceId]
+        if (!rule?.names.length) return undefined
+        const ses = session.fromPartition(partitionOf(a))
+        const cookies = await ses.cookies.get({ domain: rule.domain })
+        return rule.names.every((n) => cookies.some((c) => c.name === n))
       }
-      const rule = LOGIN_COOKIES[a.serviceId]
-      if (!rule?.names.length) continue
-      const ses = session.fromPartition(partitionOf(a))
-      const cookies = await ses.cookies.get({ domain: rule.domain })
-      now[a.id] = rule.names.every((n) => cookies.some((c) => c.name === n))
-    }
+    })
     for (const id of lostLogins(prev, now)) {
       const a = accounts.find((x) => x.id === id)
       const why = a?.serviceId === 'whatsapp' ? 'login data or session gone since last start' : 'login cookie gone since last start'
