@@ -119,6 +119,29 @@ describe('LockScreen (password)', () => {
     expect(w.find('.wrong').exists()).toBe(false)
   })
 
+  it('the eye toggles the entry between hidden and visible, and a wrong attempt hides it again (UX-028)', async () => {
+    install()
+    const w = mount(LockScreen, { props: { kind: 'password' } })
+    const eye = w.find('[aria-label="Show password"]')
+    expect(eye.attributes('aria-pressed')).toBe('false')
+    expect(w.find('input[type=password]').exists()).toBe(true)
+
+    await eye.trigger('click')
+    expect(w.find('input[type=text]').exists()).toBe(true)
+    const hidden = w.find('[aria-label="Hide password"]')
+    expect(hidden.attributes('aria-pressed')).toBe('true')
+    await hidden.trigger('click')
+    expect(w.find('input[type=password]').exists()).toBe(true)
+
+    await w.find('[aria-label="Show password"]').trigger('click')
+    await w.find('input[type=text]').setValue('wrong-one')
+    await w.find('input[type=text]').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(w.find('input[type=text]').exists()).toBe(false)
+    expect(w.find('input[type=password]').exists()).toBe(true)
+    expect(w.find('[aria-label="Show password"]').attributes('aria-pressed')).toBe('false')
+  })
+
   it('shows a field instead of the pad and submits on Enter', async () => {
     const b = install({ unlock: vi.fn(async () => ({ result: 'ok' })) })
     const w = mount(LockScreen, { props: { kind: 'password' } })

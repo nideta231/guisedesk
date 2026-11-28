@@ -15,6 +15,8 @@ const waiting = computed(() => until.value > now.value)
 const secs = computed(() => Math.max(1, Math.ceil((until.value - now.value) / 1000)))
 const length = computed(() => props.pinLength ?? 6)
 const errorText = ref('')
+// Show the password (UX-028): hidden again on mount and after every failed attempt.
+const showPassword = ref(false)
 // Caps Lock (UX-029): the most common cause of a "wrong password"; only the password field needs the hint.
 const capsLock = ref(false)
 let timer: ReturnType<typeof setInterval> | undefined
@@ -57,6 +59,7 @@ async function submit() {
       capsLock.value = false
       return
     }
+    showPassword.value = false
     entry.value = ''
     shake.value = true
     setTimeout(() => (shake.value = false), 400)
@@ -123,7 +126,10 @@ onBeforeUnmount(() => {
         </div>
       </template>
       <div v-else class="pw">
-        <input v-model="entry" class="inp" type="password" autofocus placeholder="Password" :disabled="waiting" aria-label="Password" @input="clearError" @keydown="onCaps" @keyup="onCaps" @keydown.enter="submit" />
+        <div class="pwline">
+          <input v-model="entry" class="inp" :type="showPassword ? 'text' : 'password'" autofocus placeholder="Password" :disabled="waiting" aria-label="Password" @input="clearError" @keydown="onCaps" @keyup="onCaps" @keydown.enter="submit" />
+          <button type="button" class="eyebtn" :aria-pressed="showPassword" :aria-label="showPassword ? 'Hide password' : 'Show password'" :title="showPassword ? 'Hide password' : 'Show password'" @click="showPassword = !showPassword"><svg class="i" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg></button>
+        </div>
         <div class="pwbtns"><button class="btn" @click="emit('forgot')">Forgot</button><button class="btn pri" :disabled="waiting" @click="submit">Unlock</button></div>
         <div v-if="capsLock" class="caps" role="status">Caps Lock is on</div>
       </div>
@@ -132,3 +138,12 @@ onBeforeUnmount(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.pwline { display: flex; align-items: center; gap: 8px; }
+.pwline .inp { flex: 1; min-width: 0; margin: 0; }
+.eyebtn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 1px solid #ffffff18; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
+.eyebtn:hover { color: var(--text); background: var(--raise); }
+.eyebtn[aria-pressed='true'] { color: var(--text); background: var(--raise); }
+.eyebtn .i { width: 16px; height: 16px; }
+</style>
