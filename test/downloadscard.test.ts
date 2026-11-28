@@ -9,13 +9,14 @@ describe('Settings > General Downloads card', () => {
       prefs: async () => ({ idleLock: 10, dnd: false, startOnLogin: false }),
       downloads: vi.fn(async () => ({ dir: '/home/x/Downloads', ask: false })),
       setDownloadsAsk: vi.fn(async () => true),
-      pickDownloadsDir: vi.fn(async () => '/data/files')
+      pickDownloadsDir: vi.fn(async () => '/data/files'),
+      downloadsList: async () => []
     }
     ;(window as unknown as { guisedesk: unknown }).guisedesk = bridge
     const w = mount(SettingsGeneral, { props: { update: { state: 'none' } } })
     await flushPromises()
     const titles = w.findAll('.card h4').map((h) => h.text())
-    expect(titles).toEqual(['Startup', 'Downloads', 'Blocking', 'Keyboard', 'About and data', 'Backup', 'Updates', 'Quit'])
+    expect(titles).toEqual(['Startup', 'Downloads', 'Recent downloads', 'Blocking', 'Keyboard', 'About and data', 'Backup', 'Updates', 'Quit'])
     const card = w.findAll('.card')[1]
     expect(card.find('.path').text()).toBe('/home/x/Downloads')
     const sw = card.find('.tg')

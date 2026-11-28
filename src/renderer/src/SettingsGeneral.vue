@@ -31,6 +31,19 @@ onMounted(async () => {
   dl.value = await window.guisedesk.downloads()
 })
 
+// Recent downloads (UX-009): read once when Settings > General opens; main appends only when a download finishes.
+const recent = ref<DownloadEntryRow[]>([])
+onMounted(async () => {
+  recent.value = (await window.guisedesk.downloadsList?.()) ?? []
+})
+const when = (t: number) => new Date(t).toLocaleString()
+async function showDownload(path: string) {
+  await window.guisedesk.showDownload(path)
+}
+async function clearDownloads() {
+  recent.value = (await window.guisedesk.clearDownloads()) ?? []
+}
+
 const block = ref({ ads: false, popups: true })
 onMounted(async () => {
   const b = await window.guisedesk.blocking?.()
@@ -92,6 +105,19 @@ const backupMode = ref<'export' | 'restore' | undefined>()
         <span class="t"><b>Ask where to save each time</b><span>Otherwise files go straight to the folder.</span></span>
         <button class="tg" :class="{ on: dl.ask }" role="switch" :aria-checked="dl.ask" aria-label="Ask where to save each time" @click="toggleAsk"></button>
       </div>
+    </div>
+    <div class="card">
+      <h4>Recent downloads</h4>
+      <div v-if="!recent.length" class="dl-empty">No downloads yet.</div>
+      <template v-else>
+        <button v-for="d in recent" :key="d.path + d.time" class="dlr" :title="d.path" @click="showDownload(d.path)">
+          <span class="t"><b>{{ d.name }}</b><span>{{ d.ok ? 'Saved' : 'Failed' }} · {{ when(d.time) }}</span></span>
+          <span class="lnk">Show in folder</span>
+        </button>
+        <div class="dl-clear">
+          <button class="lnk" @click="clearDownloads">Clear list</button>
+        </div>
+      </template>
     </div>
     <div class="card">
       <h4>Blocking</h4>
@@ -157,4 +183,10 @@ const backupMode = ref<'export' | 'restore' | undefined>()
 .path { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lnk { flex: none; height: 30px; padding: 0 12px; border-radius: 8px; border: 1px solid #ffffff18; background: transparent; color: var(--text); font-size: 12.5px; font-weight: 700; }
 .lnk:hover { background: var(--raise); }
+.dlr { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+.dlr:hover .lnk { background: var(--raise); }
+.dlr .t { flex: 1; min-width: 0; }
+.dlr .t b { display: block; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dl-empty { padding: 8px 0; color: var(--muted); font-size: 12.5px; }
+.dl-clear { display: flex; justify-content: flex-end; padding-top: 10px; }
 </style>

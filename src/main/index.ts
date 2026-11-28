@@ -42,7 +42,7 @@ import { applyIdle } from './prefs'
 import { checkForUpdate, realRun, type UpdateInfo } from './updater'
 import { version } from '../../package.json'
 import { buildContextMenu, rowMenuItems } from './contextmenu'
-import { doneNotice, downloadOutcome, loadDownloads, pickFolder, saveDownloads, uniquePath } from './downloads'
+import { addDownload, clearDownloads, doneNotice, downloadOutcome, loadDownloadList, loadDownloads, pickFolder, saveDownloadList, saveDownloads, uniquePath } from './downloads'
 import { isHelpShortcut, isSettingsShortcut, isSwitcherShortcut, nextZoom, switchTarget, zoomKey, type KeyInput } from './shortcuts'
 import { accountsToUnload, sidebarOrder } from './services'
 import { PARTS, partsOn, type Part } from '../preload/blur'
@@ -684,6 +684,9 @@ function hookDownloads(ses: Electron.Session): void {
       const outcome = downloadOutcome(state)
       if (outcome === 'silent') return
       const path = item.getSavePath()
+      // Recent downloads (UX-009): a small 0600 history written only when a download finishes.
+      const entry = { path, name: basename(path || name), time: Date.now(), ok: outcome === 'ok' }
+      saveDownloadList(dir, addDownload(loadDownloadList(dir), entry))
       onDownloadDone(outcome === 'ok', path)
     })
   })
@@ -1333,6 +1336,19 @@ function createWindow(): BrowserWindow {
     const picked = r.canceled ? undefined : r.filePaths[0]
     if (picked) saveDownloads(dir, { ...loadDownloads(dir), dir: picked })
     return picked
+  })
+  // Recent downloads (UX-009): the last 20 finished files, and the two actions on that list.
+  gipc.handle('downloads:list', (e: { sender: { id: number } }) => (fromApp(e) ? loadDownloadList(dir) : undefined))
+  gipc.handle('downloads:clear', (e: { sender: { id: number } }) => {
+    if (!fromApp(e)) return undefined
+    saveDownloadList(dir, clearDownloads())
+    return []
+  })
+  gipc.handle('downloads:show', (e: { sender: { id: number } }, path: unknown) => {
+    if (!fromApp(e) || typeof path !== 'string') return false
+    if (!loadDownloadList(dir).some((d) => d.path === path)) return false
+    shell.showItemInFolder(path)
+    return true
   })
   // Backup and restore (D61): export packs in a worker and writes one encrypted file; restore is staged, then
   // applied by the next start before any session exists.

@@ -3,6 +3,47 @@ import { readFileSync } from 'node:fs'
 import { basename, extname, join } from 'node:path'
 import { writeAtomic } from './atomic'
 
+/** One finished download kept in downloads.json for the Settings list (UX-009). */
+export interface DownloadEntry {
+  path: string
+  name: string
+  time: number
+  ok: boolean
+}
+
+export const DOWNLOAD_HISTORY_MAX = 20
+
+/** A cancelled download is not history; otherwise the newest entry goes first and the list stays at 20. */
+export function addDownload(list: DownloadEntry[], entry: DownloadEntry & { cancelled?: boolean }): DownloadEntry[] {
+  if (entry.cancelled) return list
+  const clean: DownloadEntry = { path: entry.path, name: entry.name, time: entry.time, ok: entry.ok }
+  return [clean, ...list].slice(0, DOWNLOAD_HISTORY_MAX)
+}
+
+/** The Clear list action. */
+export function clearDownloads(): DownloadEntry[] {
+  return []
+}
+
+/** Reads downloads.json; a missing or broken file, and old entries without the fields, load as an empty list. */
+export function loadDownloadList(dir: string): DownloadEntry[] {
+  try {
+    const raw = JSON.parse(readFileSync(join(dir, 'downloads.json'), 'utf8'))
+    if (!Array.isArray(raw)) return []
+    const rows = raw.filter(
+      (e): e is DownloadEntry =>
+        !!e && typeof e === 'object' && typeof e.path === 'string' && typeof e.name === 'string' && typeof e.time === 'number' && typeof e.ok === 'boolean'
+    )
+    return rows.slice(0, DOWNLOAD_HISTORY_MAX)
+  } catch {
+    return []
+  }
+}
+
+export function saveDownloadList(dir: string, list: DownloadEntry[]): void {
+  writeAtomic(join(dir, 'downloads.json'), JSON.stringify(list, null, 2), undefined, 0o600)
+}
+
 export interface DownloadSettings {
   dir?: string
   ask: boolean

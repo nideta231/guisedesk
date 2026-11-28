@@ -13,6 +13,14 @@ interface LinkChoice {
   candidates: { id: string; label: string; colour: string; serviceId: string }[]
 }
 
+/** One finished download in Settings > General (UX-009). */
+interface DownloadEntryRow {
+  path: string
+  name: string
+  time: number
+  ok: boolean
+}
+
 interface AccountRow {
   id: string
   serviceId: string
@@ -273,6 +281,10 @@ interface Window {
     downloads(): Promise<{ dir: string; ask: boolean }>
     setDownloadsAsk(ask: boolean): Promise<boolean>
     pickDownloadsDir(): Promise<string | undefined>
+    /** Recent downloads (UX-009): the last 20 finished files, clearing the list, and showing one in its folder. */
+    downloadsList(): Promise<DownloadEntryRow[]>
+    clearDownloads(): Promise<DownloadEntryRow[]>
+    showDownload(path: string): Promise<boolean>
     /** Ad and pop-up blocking (D45): both on by default; setBlocking saves and applies (ads reload the open views). */
     blocking(): Promise<{ ads: boolean; popups: boolean }>
     setBlocking(v: { ads?: boolean; popups?: boolean }): Promise<boolean>
