@@ -420,6 +420,31 @@ describe('SettingsExtensions service names (UX-044)', () => {
   })
 })
 
+describe('Settings > Notifications work-hours link (UX-048)', () => {
+  it('the quiet switch works and the link opens the Lock tab with the work-hours card', async () => {
+    const setQuietWorkHours = vi.fn(async () => true)
+    ;(window as unknown as { guisedesk: unknown }).guisedesk = {
+      prefs: vi.fn(async () => ({ idleLock: 10, dnd: false, quietWorkHours: false, startOnLogin: false })),
+      onDnd: vi.fn(),
+      setQuietWorkHours,
+      lockState: vi.fn(async () => ({ state: 'unlocked', kind: 'pin', pinLength: 6 })),
+      schedule: vi.fn(async () => ({ on: true, days: [1, 2, 3, 4, 5], start: '09:00', end: '17:00', workMinutes: 10, offMinutes: 30, count: 'unlock' })),
+      saveLastSettingsTab: vi.fn(async () => undefined)
+    }
+    const w = mount(Settings, { props: { accounts, disabled: [], tab: 'Notifications' } })
+    await flushPromises()
+    await w.find('[aria-label="Quiet outside work hours"]').trigger('click')
+    await flushPromises()
+    expect(setQuietWorkHours).toHaveBeenCalledWith(true)
+    expect(w.find('[aria-label="Quiet outside work hours"]').classes()).toContain('on')
+
+    await w.find('.workhours').trigger('click')
+    await flushPromises()
+    expect(w.find('.tabs .sel').text()).toBe('Lock')
+    expect(w.findAll('.card h4').map((h) => h.text())).toContain('Work-hours schedule')
+  })
+})
+
 describe('Settings tabs from the keyboard (UX-005)', () => {
   const stubs = { SettingsServices: true, SettingsLock: true, SettingsNotifications: true, SettingsExtensions: true, SettingsGeneral: true }
   const open = () => mount(Settings, { props: { accounts, disabled: [] }, global: { stubs } })

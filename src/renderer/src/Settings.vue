@@ -55,7 +55,7 @@ function onTabKey(e: KeyboardEvent) {
     </div>
     <SettingsServices v-if="tab === 'Services'" :accounts="accounts" :disabled="disabled" @toggle="(s, on) => emit('toggle', s, on)" @open="(id) => emit('open', id)" />
     <SettingsLock v-else-if="tab === 'Lock'" @reset="emit('reset')" />
-    <SettingsNotifications v-else-if="tab === 'Notifications'" :accounts="accounts" @unmute="(id) => emit('unmute', id)" />
+    <SettingsNotifications v-else-if="tab === 'Notifications'" :accounts="accounts" @unmute="(id) => emit('unmute', id)" @opentab="(t) => (tab = t)" />
     <SettingsExtensions v-else-if="tab === 'Extensions'" :accounts="accounts" />
     <SettingsGeneral v-else :update="update ?? { state: 'checking' }" @check="emit('check')" @apply="emit('apply')" @shortcuts="emit('shortcuts')" />
   </section>

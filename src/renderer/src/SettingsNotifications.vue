@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { initials } from './initials'
 
 const props = defineProps<{ accounts: AccountRow[] }>()
-const emit = defineEmits<{ unmute: [id: string] }>()
+const emit = defineEmits<{ unmute: [id: string]; opentab: [tab: string] }>()
 const dnd = ref(false)
 const quiet = ref(false)
 const muted = computed(() => props.accounts.filter((a) => a.muted))
@@ -39,6 +39,7 @@ async function toggleQuiet() {
       </div>
       <div class="sr">
         <span class="t"><b>Quiet outside work hours</b><span>Uses the work days and hours from Settings &gt; Lock. Notifications are dropped outside them.</span></span>
+        <button class="btn workhours" @click="emit('opentab', 'Lock')">Change work hours</button>
         <button class="tg" :class="{ on: quiet }" role="switch" :aria-checked="quiet" aria-label="Quiet outside work hours" @click="toggleQuiet"></button>
       </div>
     </div>
