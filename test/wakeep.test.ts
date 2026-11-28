@@ -233,6 +233,31 @@ describe('startKeeper', () => {
     expect(idb.closes()).toBe(1)
   })
 
+  it('reopens IndexedDB when a cached connection is dead', async () => {
+    let opens = 0
+    const makeDb = (broken: boolean) => ({
+      transaction() {
+        if (broken) throw Object.assign(new Error('dead connection'), { name: 'InvalidStateError' })
+        const tx: any = { objectStore: () => ({ getAll: () => ({ result: [] }), put: () => ({}), delete: () => ({}) }) }
+        setTimeout(() => tx.oncomplete?.(), 0)
+        return tx
+      },
+      close() {}
+    })
+    const factory = {
+      open() {
+        opens++
+        const req: any = {}
+        const conn = makeDb(opens === 1)
+        setTimeout(() => { req.result = conn; req.onsuccess?.() }, 0)
+        return req
+      }
+    }
+    const store = idbStore(factory as unknown as IDBFactory)
+    await expect(store.all()).resolves.toEqual([])
+    expect(opens).toBe(2)
+  })
+
   it('store not found: one warning, state unavailable, nothing thrown', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const states: string[] = []

@@ -162,17 +162,29 @@ export function findStore(win: any): any {
 export function idbStore(idb: IDBFactory): KeepStore {
   let db: IDBDatabase | null = null
   let opening: Promise<IDBDatabase> | null = null
+  // A closed or upgraded connection must never be handed out again: the next call opens a fresh one.
+  const drop = () => {
+    const old = db
+    db = null
+    opening = null
+    try { old?.close() } catch (e) { /* already closed */ }
+  }
   const open = (): Promise<IDBDatabase> => {
     if (opening) return opening
     opening = new Promise((resolve, reject) => {
       const r = idb.open('gd-wakeep', 1)
       r.onupgradeneeded = () => void r.result.createObjectStore('msgs', { keyPath: 'id' })
-      r.onsuccess = () => { db = r.result; resolve(r.result) }
+      r.onsuccess = () => {
+        db = r.result
+        r.result.onclose = drop
+        r.result.onversionchange = drop
+        resolve(r.result)
+      }
       r.onerror = () => { opening = null; reject(r.error) }
     })
     return opening
   }
-  const run = <T>(mode: IDBTransactionMode, f: (s: IDBObjectStore) => IDBRequest<T> | void): Promise<T | undefined> =>
+  const once = <T>(mode: IDBTransactionMode, f: (s: IDBObjectStore) => IDBRequest<T> | void): Promise<T | undefined> =>
     open().then(
       (conn) =>
         new Promise<T | undefined>((resolve, reject) => {
@@ -182,6 +194,13 @@ export function idbStore(idb: IDBFactory): KeepStore {
           tx.onerror = () => reject(tx.error)
         })
     )
+  // The browser can close the connection between two operations (tab backgrounding, a version change); one retry
+  // with a fresh connection covers that without hiding a real error.
+  const run = <T>(mode: IDBTransactionMode, f: (s: IDBObjectStore) => IDBRequest<T> | void): Promise<T | undefined> =>
+    once(mode, f).catch((e) => {
+      if (e && (e as DOMException).name === 'InvalidStateError') { drop(); return once(mode, f) }
+      throw e
+    })
   return {
     all: () => run<Entry[]>('readonly', (s) => s.getAll()).then((r) => r || []),
     put: (e) => run('readwrite', (s) => void s.put(e)).then(() => undefined),
