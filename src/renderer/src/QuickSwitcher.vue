@@ -5,25 +5,35 @@ import { filterAccounts, moveSelection, type QuickRow } from '../../main/quick'
 import { initials } from './initials'
 import { useDialogFocus } from './useDialogFocus'
 
-const props = defineProps<{ accounts: AccountRow[] }>()
+const props = defineProps<{ accounts: AccountRow[]; asleep?: string[] }>()
 const emit = defineEmits<{ choose: [id: string]; close: [] }>()
 
 interface Row extends QuickRow {
   serviceId: string
   colour: string
+  asleep: boolean
 }
-const rows = computed<Row[]>(() =>
-  props.accounts.map((a) => ({
+const rows = computed<Row[]>(() => {
+  const asleep = new Set(props.asleep ?? [])
+  return props.accounts.map((a) => ({
     id: a.id,
     label: a.label,
     service: presetFor(a.serviceId)?.name ?? a.custom?.name ?? 'Custom site',
     serviceId: a.serviceId,
-    colour: a.colour
+    colour: a.colour,
+    asleep: asleep.has(a.id)
   }))
-)
+})
 
 const query = ref('')
-const list = computed(() => filterAccounts(rows.value, query.value))
+// The `asleep` token keeps sleeping rows (UX-024), while an account literally named "asleep" still ranks normally.
+const list = computed(() => {
+  const tokens = query.value.trim().toLowerCase().split(/\s+/).filter(Boolean)
+  if (!tokens.includes('asleep')) return filterAccounts(rows.value, query.value)
+  const normal = filterAccounts(rows.value, query.value)
+  const seen = new Set(normal.map((r) => r.id))
+  return [...normal, ...rows.value.filter((r) => r.asleep && !seen.has(r.id))]
+})
 const active = ref(0)
 // A new query re-ranks the list; the first hit is highlighted.
 watch(list, () => (active.value = 0))
@@ -78,6 +88,7 @@ function onKey(e: KeyboardEvent) {
         >
           <div class="av" :style="{ background: r.colour }">{{ initials(r.label) }}</div>
           <div class="nm">{{ r.label }}</div>
+          <span v-if="r.asleep" class="asleep">Asleep</span>
           <div class="svcn">{{ r.service }}</div>
         </div>
         <div v-if="!list.length" class="hint none">No accounts match "{{ query }}".</div>
@@ -93,5 +104,6 @@ function onKey(e: KeyboardEvent) {
 .row { color: var(--text); }
 .nm { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .svcn { color: var(--muted); font-size: 12.5px; }
+.asleep { flex: none; padding: 1px 6px; border-radius: 999px; background: var(--raise); color: var(--muted); font-size: 9.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .none { padding: 10px 8px; }
 </style>

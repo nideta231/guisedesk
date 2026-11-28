@@ -154,6 +154,37 @@ async function app() {
   return { w, push, select, dialog }
 }
 
+describe('QuickSwitcher asleep accounts (UX-024)', () => {
+  it('marks sleeping rows, filters on the asleep token, and still ranks normal queries', async () => {
+    const w = mount(QuickSwitcher, { props: { accounts, asleep: ['wa1'] } })
+    const all = w.findAll('.results .row')
+    expect(all[0].find('.asleep').text()).toBe('Asleep')
+    expect(all[1].find('.asleep').exists()).toBe(false)
+    expect(all[2].find('.asleep').exists()).toBe(false)
+
+    await w.find('.search').setValue('asleep')
+    const sleeping = w.findAll('.results .row')
+    expect(sleeping).toHaveLength(1)
+    expect(sleeping[0].text()).toContain('Personal')
+    await sleeping[0].trigger('click')
+    expect(w.emitted('choose')).toEqual([['wa1']])
+
+    await w.find('.search').setValue('work')
+    const ranked = w.findAll('.results .row')
+    expect(ranked).toHaveLength(1)
+    expect(ranked[0].text()).toContain('Work')
+  })
+
+  it('an account literally named asleep is not hidden by the token', async () => {
+    const named = [...accounts, { id: 'zz', serviceId: 'custom', label: 'asleep', colour: '#444', order: 3 }]
+    const w = mount(QuickSwitcher, { props: { accounts: named, asleep: ['wa1'] } })
+    await w.find('.search').setValue('asleep')
+    const text = w.findAll('.results .row').map((r) => r.text())
+    expect(text.some((t) => t.includes('Personal'))).toBe(true)
+    expect(text.some((t) => t.includes('asleep'))).toBe(true)
+  })
+})
+
 describe('App quick switcher', () => {
   it('Ctrl+K from main opens the dialog, detaches the view and picks on click', async () => {
     const { w, push, select, dialog } = await app()

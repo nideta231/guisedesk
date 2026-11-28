@@ -603,7 +603,7 @@ async function add(input: Parameters<Window['guisedesk']['add']>[0]) {
     />
     <LinkChooser v-if="choosing" :url="choosing.url" :candidates="choosing.candidates" @choose="chosen" />
     <AddAccount v-if="adding" :accounts="accounts" :server-error="addError" @add="add" @cancel="closeAdd" />
-    <QuickSwitcher v-if="switcherOpen" :accounts="shown" @choose="pickSwitcher" @close="closeSwitcher" />
+    <QuickSwitcher v-if="switcherOpen" :accounts="shown" :asleep="asleepIds" @choose="pickSwitcher" @close="closeSwitcher" />
     <Inbox v-if="inboxOpen" :items="inbox.items" :accounts="accounts" :disabled="disabled" @select="pickInbox" @unread="markInboxUnread" @read-all="readAllInbox" @clear="clearInbox" @open-services="openServicesFromInbox" @close="closeInbox" />
     <ShortcutHelp v-if="helpOpen" @close="closeHelp" />
   </div>
