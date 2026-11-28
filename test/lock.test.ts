@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createGuardedIpc } from '../src/main/guard'
 import { createLock, hashSecret, isLockShortcut, verifySecret } from '../src/main/lock'
 import { validateNewSecret } from '../src/main/lockrules'
@@ -118,6 +118,24 @@ describe('lock state machine', () => {
     for (let i = 0; i < 5; i++) await lock.unlock('111111')
     clock.t += 30_000
     for (let i = 0; i < 4; i++) expect(await lock.unlock('111111')).toEqual({ result: 'wrong' })
+  })
+})
+
+describe('oversized entry (SE-008)', () => {
+  it('a megabyte paste is a wrong try without deriving, and counts toward the wait', async () => {
+    const first = await fresh()
+    await first.lock.setup('pin', '123456', '123456')
+    const derive = vi.fn(async () => Buffer.alloc(FAST.keylen))
+    const { lock, clock } = await fresh({ dir: first.dir })
+    const guarded = createLock({ dir: first.dir, params: FAST, derive, now: () => clock.t })
+    expect(guarded.state()).toBe('locked')
+    expect(await guarded.unlock('x'.repeat(1_000_000))).toEqual({ result: 'wrong' })
+    expect(derive).not.toHaveBeenCalled()
+    // The oversized try already counted: four more wrong entries reach the limit that would need five from zero.
+    for (let i = 0; i < 3; i++) expect(await guarded.unlock('111111')).toEqual({ result: 'wrong' })
+    expect(await guarded.unlock('111111')).toEqual({ result: 'wait', until: clock.t + 30_000 })
+    expect(derive).toHaveBeenCalledTimes(4)
+    expect(lock.state()).toBe('locked')
   })
 })
 

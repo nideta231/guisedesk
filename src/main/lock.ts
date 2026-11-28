@@ -23,6 +23,8 @@ export interface LockRecord extends ScryptParams {
 export const DEFAULT_PARAMS: ScryptParams = { N: 32768, r: 8, p: 1, keylen: 64 }
 export const MAX_TRIES = 5
 export const WAIT_MS = 30_000
+/** No valid PIN or password comes anywhere near this; a larger paste is refused before scrypt runs. */
+export const MAX_ENTRY_BYTES = 1024
 
 const derive = (secret: string, salt: Buffer, q: ScryptParams): Promise<Buffer> =>
   new Promise((resolve, reject) =>
@@ -53,10 +55,10 @@ const sane = (r: LockRecord) =>
   Number.isInteger(r.keylen) && r.keylen >= 16 && r.keylen <= 128
 
 /** Constant-time comparison of the derived key with the stored one. */
-export async function verifySecret(secret: string, rec: LockRecord): Promise<boolean> {
+export async function verifySecret(secret: string, rec: LockRecord, deriveFn = derive): Promise<boolean> {
   if (!sane(rec) || typeof secret !== 'string') return false
   const want = Buffer.from(rec.hash, 'base64')
-  const got = await derive(secret, Buffer.from(rec.salt, 'base64'), rec)
+  const got = await deriveFn(secret, Buffer.from(rec.salt, 'base64'), rec)
   return want.length === got.length && timingSafeEqual(want, got)
 }
 
@@ -75,10 +77,11 @@ function readRecord(path: string): LockRecord | undefined {
 
 export interface LockInfo { state: LockState; kind?: LockKind; pinLength?: number; waitUntil?: number }
 
-export function createLock(opts: { dir: string; now?: () => number; params?: ScryptParams; startUnlocked?: boolean }) {
+export function createLock(opts: { dir: string; now?: () => number; params?: ScryptParams; startUnlocked?: boolean; derive?: typeof derive }) {
   const path = join(opts.dir, 'lock.json')
   const now = opts.now ?? Date.now
   const params = opts.params ?? DEFAULT_PARAMS
+  const deriveFn = opts.derive ?? derive
   let rec = readRecord(path)
   // App start is always locked, or in setup when there is no (usable) lock.json.
   let state: LockState = opts.startUnlocked ? 'unlocked' : rec ? 'locked' : 'setup'
@@ -183,7 +186,10 @@ export function createLock(opts: { dir: string; now?: () => number; params?: Scr
   async function check(entry: string): Promise<UnlockResult> {
     if (!rec) return { result: 'wrong' }
     if (now() < waitUntil) return { result: 'wait', until: waitUntil }
-    if (await verifySecret(String(entry ?? ''), rec)) {
+    const text = String(entry ?? '')
+    // A pasted megabyte would make scrypt allocate and hash it all; count it as a normal wrong try instead.
+    const tooLong = Buffer.byteLength(text, 'utf8') > MAX_ENTRY_BYTES
+    if (!tooLong && (await verifySecret(text, rec, deriveFn))) {
       if (fails || waitUntil) {
         fails = 0
         waitUntil = 0
