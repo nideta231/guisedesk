@@ -215,6 +215,33 @@ export function listInstalled(extDir: string): InstalledExtension[] {
   return out.sort((a, b) => a.name.localeCompare(b.name))
 }
 
+export interface CachedInstalled {
+  (): InstalledExtension[]
+  /** Drop the cached list after an install, remove or update. */
+  invalidate(): void
+}
+
+/**
+ * A short-lived installed list: every view build or extension toggle reads it, and a full scan opens and parses one
+ * manifest per extension. A just-installed or removed extension appears as soon as the caller invalidates.
+ */
+export function cachedInstalled(fetch: () => InstalledExtension[], now: () => number = Date.now, ttlMs = 5000): CachedInstalled {
+  let value: InstalledExtension[] | undefined
+  let at = 0
+  const get = (() => {
+    const t = now()
+    if (!value || t - at >= ttlMs) {
+      value = fetch()
+      at = t
+    }
+    return value
+  }) as CachedInstalled
+  get.invalidate = (): void => {
+    value = undefined
+  }
+  return get
+}
+
 /**
  * Reloads one extension in every session that has it (D56). A session where the new copy fails to load gets the old
  * copy back, so one bad update cannot silently disable the extension for that account.

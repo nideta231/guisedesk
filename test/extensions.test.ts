@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
-import { actionClick, checkExtensionUpdates, compareVersions, createExtensionFetcher, enabledFor, listInstalled, loadUpdateTimes, outboundUrl, parseExtensionId, parseUpdateVersion, readManifest, readyCopy, reloadEverywhere, saveUpdateTimes, toggled, updateCheckUrl } from '../src/main/extensions'
+import { actionClick, cachedInstalled, checkExtensionUpdates, compareVersions, createExtensionFetcher, enabledFor, listInstalled, loadUpdateTimes, outboundUrl, parseExtensionId, parseUpdateVersion, readManifest, readyCopy, reloadEverywhere, saveUpdateTimes, toggled, updateCheckUrl } from '../src/main/extensions'
 import { appendEvent, lostLogins } from '../src/main/events'
 import SettingsExtensions from '../src/renderer/src/SettingsExtensions.vue'
 
@@ -43,6 +43,29 @@ describe('outbound extension URLs', () => {
     expect(outboundUrl('mailto:a@b.test')).toBe('mailto:a@b.test')
     for (const u of ['file:/etc/passwd', 'javascript:alert(1)', 'data:text/html,<b>x</b>', 'custom-scheme:payload', 'not a url', '', null, 42])
       expect(outboundUrl(u)).toBeNull()
+  })
+})
+
+describe('cached installed list (PF-005)', () => {
+  it('reuses the list within 5 s, refreshes after invalidate and after expiry', () => {
+    let clock = 1000
+    const row = { id: WAWP, name: 'WA Web Plus', version: '5.2.9', path: '/x/5.2.9_0' }
+    const fetch = vi.fn(() => [row])
+    const get = cachedInstalled(fetch, () => clock)
+    const first = get()
+    expect(get()).toBe(first)
+    expect(fetch).toHaveBeenCalledOnce()
+    clock += 4999
+    expect(get()).toBe(first)
+    expect(fetch).toHaveBeenCalledOnce()
+    get.invalidate()
+    const second = get()
+    expect(second).not.toBe(first)
+    expect(fetch).toHaveBeenCalledTimes(2)
+    clock += 5000
+    const third = get()
+    expect(third).not.toBe(second)
+    expect(fetch).toHaveBeenCalledTimes(3)
   })
 })
 

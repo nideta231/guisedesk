@@ -21,7 +21,7 @@ import { createBlockState, shieldMenuItems } from './blockstate'
 import { createDispatcher } from './webrequest'
 import { ElectronChromeExtensions } from 'electron-chrome-extensions'
 import { downloadExtension } from 'electron-chrome-web-store'
-import { actionClick, checkExtensionUpdates, createExtensionFetcher, enabledFor, extensionsDir, listInstalled, loadUpdateTimes, outboundUrl, parseExtensionId, readManifest, reloadEverywhere, saveUpdateTimes, toggled, type ExtensionUpdate } from './extensions'
+import { actionClick, cachedInstalled, checkExtensionUpdates, createExtensionFetcher, enabledFor, extensionsDir, listInstalled, loadUpdateTimes, outboundUrl, parseExtensionId, readManifest, reloadEverywhere, saveUpdateTimes, toggled, type ExtensionUpdate } from './extensions'
 import { appendEvent, LOGIN_COOKIES, lostLogins } from './events'
 import { parseWaPage, readDirSafe, storeHasData, waStorePath, whatsappLoggedIn, WA_PAGE_SCRIPT, type WaPage } from './whatsapp'
 import { writeAtomic } from './atomic'
@@ -499,7 +499,8 @@ function extApiFor(ses: Electron.Session): ElectronChromeExtensions {
   }
   return x
 }
-const installedIds = () => listInstalled(extensionsDir(dir)).map((x) => x.id)
+const installedList = cachedInstalled(() => listInstalled(extensionsDir(dir)))
+const installedIds = () => installedList().map((x) => x.id)
 /** Loads the account's turned-on extensions into its session (downloads on first use); unloads the ones turned off. */
 async function applyExtensions(a: Account, wc: Electron.WebContents, win?: Electron.BaseWindow): Promise<boolean> {
   const want = enabledFor(a, installedIds())
@@ -580,6 +581,8 @@ async function runExtensionUpdates(): Promise<ExtensionUpdateResult> {
       appendEvent(dir, `extension update failed ${u.id} ${String((err as Error)?.message ?? err)}`)
     }
   }
+  // Version folders appeared or went away: the next view build must see the new list.
+  installedList.invalidate()
   if (done.length) {
     const times = loadUpdateTimes(dir)
     for (const u of done) times[u.id] = day()
@@ -610,7 +613,7 @@ function activateExtension(wc: Electron.WebContents, extId: string, win: Browser
   const api = extSessions.get(wc.session) as unknown as ExtensionClickApi | undefined
   const [w] = win.getSize()
   const anchorRect = { x: w - 360, y: 56, width: 32, height: 32 }
-  const installed = listInstalled(extensionsDir(dir)).find((x) => x.id === extId)
+  const installed = installedList().find((x) => x.id === extId)
   const target = actionClick(installed ? readManifest(installed.path) : {})
   try {
     if (target.kind === 'popup') {
@@ -1910,7 +1913,7 @@ function createWindow(): BrowserWindow {
   onExtChange = () => { if (!win.isDestroyed() && isUnlocked()) win.webContents.send('accounts:zoom', snapshot()) }
   const extList = () => {
     const times = loadUpdateTimes(dir)
-    return listInstalled(extensionsDir(dir)).map(({ id, name, version }) => ({ id, name, version, ...(times[id] ? { updated: times[id] } : {}) }))
+    return installedList().map(({ id, name, version }) => ({ id, name, version, ...(times[id] ? { updated: times[id] } : {}) }))
   }
   gipc.handle('ext:list', (e: { sender: { id: number } }) => (fromApp(e) ? extList() : []))
   // Weekly auto-update (D56) plus the Settings > Extensions button. The first check runs shortly after start.
@@ -1924,6 +1927,7 @@ function createWindow(): BrowserWindow {
     if (!id) return { error: 'Paste a Chrome Web Store link, like https://chromewebstore.google.com/detail/name/<id>' }
     try {
       await fetchExtension(id)
+      installedList.invalidate()
       const times = loadUpdateTimes(dir)
       times[id] = day()
       saveUpdateTimes(dir, times)
@@ -1944,6 +1948,7 @@ function createWindow(): BrowserWindow {
       if (held) held.extensions = accounts.find((x) => x.id === aid)?.extensions
     }
     await fetchExtension.remove(id)
+    installedList.invalidate()
     appendEvent(dir, `extension removed ${id}`)
     onExtChange()
     return extList()
@@ -2107,6 +2112,7 @@ app.whenReady().then(() => {
     void fetchExtension(id, true)
       .then(() => appendEvent(dir, `extension restored ${id}`))
       .catch((err) => appendEvent(dir, `extension restore failed ${id} ${String((err as Error)?.message ?? err)}`))
+      .finally(() => installedList.invalidate())
   }
   scheduleLoginCheck(15_000)
 })
