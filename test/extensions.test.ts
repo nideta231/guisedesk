@@ -147,6 +147,32 @@ describe('extension auto-update (D56)', () => {
     expect(installed.has(A)).toBe(true)
   })
 
+  it('one failing session rolls every touched session back to the old path', async () => {
+    const loaded: string[] = []
+    const fake = (name: string, fail: boolean) => {
+      let on = true
+      return {
+        name,
+        extensions: {
+          getExtension: () => (on ? {} : undefined),
+          removeExtension: () => void (on = false),
+          loadExtension: async (path: string) => {
+            loaded.push(`${name} ${path}`)
+            if (fail && path === '/new/A') throw new Error('bad manifest')
+            on = true
+            return {}
+          }
+        }
+      }
+    }
+    const ok = fake('ok', false)
+    const bad = fake('bad', true)
+    expect(await reloadEverywhere([ok, bad], A, '/new/A', '/old/A')).toEqual({ ok: false, failed: 1 })
+    expect(loaded).toEqual(['ok /new/A', 'bad /new/A', 'ok /old/A', 'bad /old/A'])
+    expect(ok.extensions.getExtension()).toBeTruthy()
+    expect(bad.extensions.getExtension()).toBeTruthy()
+  })
+
   it('a good update loads the new path once and leaves the sessions that did not have it alone', async () => {
     const loaded: string[] = []
     const withA = {

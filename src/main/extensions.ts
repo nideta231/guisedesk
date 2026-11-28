@@ -221,17 +221,26 @@ export interface ReloadResult {
 }
 
 export async function reloadEverywhere(sessions: Iterable<ExtensionSessionLike>, id: string, newPath: string, oldPath: string): Promise<ReloadResult> {
+  const touched: ExtensionSessionLike[] = []
   let failed = 0
   for (const ses of sessions) {
     const sx = ses.extensions
     if (!sx.getExtension(id)) continue
+    touched.push(ses)
     try {
       sx.removeExtension(id)
       await sx.loadExtension(newPath, { allowFileAccess: false })
     } catch {
       failed++
+    }
+  }
+  if (failed) {
+    // One failure makes the new copy untrustworthy: put the old one back everywhere it was loaded, so the caller can
+    // delete the newer folder without leaving a live session pointing at it.
+    for (const ses of touched) {
+      const sx = ses.extensions
       try {
-        sx.removeExtension(id)
+        if (sx.getExtension(id)) sx.removeExtension(id)
         await sx.loadExtension(oldPath, { allowFileAccess: false })
       } catch {
         /* the old copy is unusable too; nothing else to fall back to */

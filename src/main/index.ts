@@ -561,7 +561,8 @@ async function runExtensionUpdates(): Promise<ExtensionUpdateResult> {
       const path = await fetchExtension(u.id, true)
       const reload = await reloadEverywhere(extSessionSet, u.id, path, old?.path ?? path)
       if (!reload.ok) {
-        // The old folder stays next to the new one so the sessions that fell back still have a working copy.
+        // Do not leave the newer folder: readyCopy would pick it at the next start even though it failed to load.
+        if (old && old.path !== path) rmSync(path, { recursive: true, force: true })
         appendEvent(dir, `extension update kept old copy ${u.id} (${reload.failed} session${reload.failed === 1 ? '' : 's'} failed)`)
         continue
       }
