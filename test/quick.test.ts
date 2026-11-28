@@ -185,6 +185,30 @@ describe('QuickSwitcher asleep accounts (UX-024)', () => {
   })
 })
 
+describe('QuickSwitcher add account (UX-026)', () => {
+  it('shows the add row, emits add, and says No accounts yet with an empty list', async () => {
+    const w = mount(QuickSwitcher, { props: { accounts } })
+    const add = w.find('.addrow')
+    expect(add.text()).toBe('Add an account...')
+    await add.trigger('click')
+    expect(w.emitted('add')).toHaveLength(1)
+
+    const empty = mount(QuickSwitcher, { props: { accounts: [] } })
+    expect(empty.find('.none').text()).toBe('No accounts yet')
+    expect(empty.find('.addrow').exists()).toBe(true)
+  })
+
+  it('App closes the switcher and opens AddAccount when the add row is used', async () => {
+    const { w, push } = await app()
+    push()
+    await flushPromises()
+    await w.find('.switcher .addrow').trigger('click')
+    await flushPromises()
+    expect(w.find('.switcher').exists()).toBe(false)
+    expect(w.findComponent({ name: 'AddAccount' }).exists()).toBe(true)
+  })
+})
+
 describe('App quick switcher', () => {
   it('Ctrl+K from main opens the dialog, detaches the view and picks on click', async () => {
     const { w, push, select, dialog } = await app()

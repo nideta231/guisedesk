@@ -6,7 +6,7 @@ import { initials } from './initials'
 import { useDialogFocus } from './useDialogFocus'
 
 const props = defineProps<{ accounts: AccountRow[]; asleep?: string[] }>()
-const emit = defineEmits<{ choose: [id: string]; close: [] }>()
+const emit = defineEmits<{ choose: [id: string]; close: []; add: [] }>()
 
 interface Row extends QuickRow {
   serviceId: string
@@ -91,7 +91,8 @@ function onKey(e: KeyboardEvent) {
           <span v-if="r.asleep" class="asleep">Asleep</span>
           <div class="svcn">{{ r.service }}</div>
         </div>
-        <div v-if="!list.length" class="hint none">No accounts match "{{ query }}".</div>
+        <div v-if="!list.length" class="hint none">{{ accounts.length ? `No accounts match "${query}".` : 'No accounts yet' }}</div>
+        <button class="addrow" @click="emit('add')">Add an account...</button>
       </div>
       <div class="keys hint">Type to search. Up and down to move, Enter to open, Esc to close.</div>
     </div>
@@ -106,4 +107,6 @@ function onKey(e: KeyboardEvent) {
 .svcn { color: var(--muted); font-size: 12.5px; }
 .asleep { flex: none; padding: 1px 6px; border-radius: 999px; background: var(--raise); color: var(--muted); font-size: 9.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .none { padding: 10px 8px; }
+.addrow { width: 100%; margin-top: 4px; padding: 9px 8px; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--muted); font: inherit; font-size: 12.5px; font-weight: 700; text-align: left; cursor: pointer; }
+.addrow:hover { color: var(--text); background: var(--raise); }
 </style>
