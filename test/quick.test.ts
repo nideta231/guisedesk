@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { filterAccounts, moveSelection, tokenScore } from '../src/main/quick'
 import App from '../src/renderer/src/App.vue'
@@ -95,6 +96,26 @@ describe('QuickSwitcher', () => {
     await w.find('.ib.x').trigger('click')
     await w.find('.veil').trigger('click')
     expect(w.emitted('close')).toHaveLength(3)
+  })
+
+  it('scrolls the highlighted row into view on the arrow keys, wrapping at the top', async () => {
+    const w = mount(QuickSwitcher, { props: { accounts } })
+    const rows = w.findAll('.results .row')
+    const spies = rows.map((r) => {
+      const fn = vi.fn()
+      ;(r.element as HTMLElement).scrollIntoView = fn
+      return fn
+    })
+    const input = w.find('.search')
+    await input.trigger('keydown', { key: 'ArrowDown' })
+    await nextTick()
+    expect(spies[1]).toHaveBeenCalledExactlyOnceWith({ block: 'nearest' })
+    await input.trigger('keydown', { key: 'ArrowUp' })
+    await nextTick()
+    expect(spies[0]).toHaveBeenCalledExactlyOnceWith({ block: 'nearest' })
+    await input.trigger('keydown', { key: 'ArrowUp' })
+    await nextTick()
+    expect(spies[2]).toHaveBeenCalledExactlyOnceWith({ block: 'nearest' })
   })
 
   it('clicking a row chooses that account', async () => {

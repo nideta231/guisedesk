@@ -28,7 +28,15 @@ const active = ref(0)
 watch(list, () => (active.value = 0))
 
 const input = ref<HTMLInputElement>()
+const results = ref<HTMLElement>()
 onMounted(() => void nextTick(() => input.value?.focus()))
+
+// Keep the highlighted row on screen (UX-025): the list is taller than its 300px box.
+watch(active, async () => {
+  await nextTick()
+  const row = results.value?.querySelectorAll<HTMLElement>('.row')[active.value]
+  if (row && typeof row.scrollIntoView === 'function') row.scrollIntoView({ block: 'nearest' })
+})
 
 function choose(id: string) {
   emit('choose', id)
@@ -58,7 +66,7 @@ function onKey(e: KeyboardEvent) {
       <button class="ib x" title="Close (Esc)" aria-label="Close" @click="emit('close')"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
       <h3>Quick switcher</h3>
       <input ref="input" v-model="query" class="inp search" placeholder="Search accounts..." aria-label="Search accounts" @keydown="onKey" />
-      <div class="results">
+      <div ref="results" class="results">
         <div
           v-for="(r, i) in list"
           :key="r.id"
