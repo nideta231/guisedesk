@@ -18,3 +18,10 @@ export function formatCount(n: number): string {
 export function totalUnread(counts: Record<string, number>): number {
   return Object.values(counts).reduce((s, n) => s + n, 0)
 }
+
+/** The same counts without one account, for a logout that must stop advertising its old badge. */
+export function without(counts: Record<string, number>, id: string): Record<string, number> {
+  const out = { ...counts }
+  delete out[id]
+  return out
+}

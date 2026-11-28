@@ -57,6 +57,18 @@ describe('reset clears block state', () => {
   })
 })
 
+describe('logout forgets one account', () => {
+  it('forget removes that account from the snapshot and leaves the others', () => {
+    const s = createBlockState(() => {})
+    s.blocked('a', 'https://ads.example/x')
+    s.popup('a', 'https://shop.example/pay')
+    s.blocked('b', 'https://ads.example/y')
+    s.forget('a')
+    expect(Object.keys(s.snapshot())).toEqual(['b'])
+    expect(s.snapshot().b.blocked).toBe(1)
+  })
+})
+
 describe('shield menu', () => {
   it('clicking the shield emits shield', async () => {
     const w = mount(TopBar, { props: { account: wa, asleep: false, adsOn: true, blocked: 3 } })

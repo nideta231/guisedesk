@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatCount, parseUnread, totalUnread } from '../src/main/unread'
+import { formatCount, parseUnread, totalUnread, without } from '../src/main/unread'
 import { presetFor } from '../src/main/presets'
 
 describe('parseUnread', () => {
@@ -25,5 +25,11 @@ describe('parseUnread', () => {
   it('sums the per-account counts for the tray', () => {
     expect(totalUnread({ a: 3, b: 0, c: 12 })).toBe(15)
     expect(totalUnread({})).toBe(0)
+  })
+  it('without drops just the logged-out account and leaves the rest', () => {
+    const counts = { a: 3, b: 0, c: 12 }
+    expect(without(counts, 'c')).toEqual({ a: 3, b: 0 })
+    expect(counts).toEqual({ a: 3, b: 0, c: 12 })
+    expect(without({}, 'a')).toEqual({})
   })
 })

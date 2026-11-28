@@ -26,7 +26,7 @@ import { appendEvent, LOGIN_COOKIES, lostLogins } from './events'
 import { parseWaPage, readDirSafe, storeHasData, waStorePath, whatsappLoggedIn, WA_PAGE_SCRIPT, type WaPage } from './whatsapp'
 import { writeAtomic } from './atomic'
 import { normalizeSchedule, type LockSchedule } from './schedule'
-import { parseUnread, totalUnread } from './unread'
+import { parseUnread, totalUnread, without } from './unread'
 import { createTray } from './tray'
 import { decideNotification, quietOutsideWorkHours } from './notify'
 import { applyPermissionPolicy } from './permissions'
@@ -118,7 +118,7 @@ let onSplitChange: () => void = () => {}
 // While a dialog is open the service view is detached (it would draw over the dialog).
 let dialogOpen = false
 // Unread count per account id, from page titles. GUISEDESK_FAKE_COUNTS="id=3,id2=12" (dev only) pins them instead.
-const counts: Record<string, number> = {}
+let counts: Record<string, number> = {}
 const fakeCounts = process.env.GUISEDESK_FAKE_COUNTS
 let onCounts: () => void = () => {}
 let quitting = false
@@ -1544,7 +1544,7 @@ function createWindow(): BrowserWindow {
     // A shared login logs out every account on it, so their popups go too.
     for (const x of onPartition(a, accounts)) popups.closeFor(x.id)
     appendEvent(dir, `logout ${id} (from the app)`)
-    await logOut(dir, id, {
+    const ok = await logOut(dir, id, {
       clearStorage,
       closeView: () => {},
       reloadView: () => {
@@ -1552,6 +1552,11 @@ function createWindow(): BrowserWindow {
         void views.get(id)?.webContents.loadURL(preset?.startUrl ?? a.custom?.url ?? 'about:blank')
       }
     })
+    if (ok) {
+      counts = without(counts, id)
+      blockState.forget(id)
+      push()
+    }
     return snapshot()
   })
   gipc.handle('accounts:remove', async (_e: unknown, id: string) => {
