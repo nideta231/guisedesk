@@ -2,7 +2,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { inflateSync } from 'node:zlib'
+import { deflateSync, inflateSync } from 'node:zlib'
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { allowedRestorePath, applyPendingRestore, buildBackupArchive, decryptBackup, encryptBackup, inspectBackupBytes, PENDING_ARCHIVE, PENDING_MARKER, packArchive, prepareRestore, readArchiveManifest, unpackArchive } from '../src/main/backup'
@@ -180,6 +180,31 @@ describe('backup manifest and restore (D61)', () => {
     expect(existsSync(join(target, PENDING_MARKER))).toBe(false)
     expect(existsSync(join(target, PENDING_ARCHIVE))).toBe(false)
     expect(applyPendingRestore(target)).toBeNull()
+  })
+
+  it('refuses partition data when the manifest says logins were not included', () => {
+    const target = mkdtempSync(join(tmpdir(), 'gd-backup-logins-'))
+    writeFileSync(join(target, 'accounts.json'), 'old-accounts')
+    mkdirSync(join(target, 'Partitions', 'old'), { recursive: true })
+    writeFileSync(join(target, 'Partitions', 'old', 'Cookies'), 'stale')
+
+    const entries = packArchive([
+      { path: 'accounts.json', data: Buffer.from('new-accounts') },
+      { path: 'Partitions/w1/Cookies', data: Buffer.from('cookie') },
+      { path: 'manifest.json', data: Buffer.from(JSON.stringify({ ...manifest, includeLogins: false })) }
+    ])
+    const file = join(target, 'tampered.gdbackup')
+    writeFileSync(file, encryptBackup(PW, deflateSync(entries), PARAMS))
+
+    expect(() => prepareRestore({ dataDir: target, file, password: PW })).toThrow(/saved logins/)
+    expect(readFileSync(join(target, 'accounts.json'), 'utf8')).toBe('old-accounts')
+    expect(existsSync(join(target, PENDING_MARKER))).toBe(false)
+
+    writeFileSync(join(target, PENDING_ARCHIVE), entries)
+    writeFileSync(join(target, PENDING_MARKER), JSON.stringify({ archive: PENDING_ARCHIVE }))
+    expect(() => applyPendingRestore(target)).toThrow(/saved logins/)
+    expect(readFileSync(join(target, 'accounts.json'), 'utf8')).toBe('old-accounts')
+    expect(readFileSync(join(target, 'Partitions', 'old', 'Cookies'), 'utf8')).toBe('stale')
   })
 
   it('rejects a staged archive with a path outside the data dir', () => {

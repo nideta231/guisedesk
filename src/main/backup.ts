@@ -180,6 +180,13 @@ export function allowedRestorePath(path: string): boolean {
   return parts[0] === 'Partitions' && parts.length > 1
 }
 
+/** A backup that says it has no saved logins must not carry partition cookie or storage files. */
+function refuseUnexpectedLogins(entries: BackupEntry[], manifest: BackupManifest): void {
+  if (manifest.includeLogins !== true && entries.some((e) => e.path.startsWith('Partitions/'))) {
+    throw new Error('The backup says it has no saved logins, but it contains login data.')
+  }
+}
+
 function readIf(path: string): Buffer | undefined {
   try {
     return readFileSync(path)
@@ -278,6 +285,7 @@ export function prepareRestore(input: { dataDir: string; file: string; password:
   const plain = inflateSync(decryptBackup(input.password, readFileSync(input.file)))
   const entries = unpackArchive(plain)
   const manifest = readArchiveManifest(entries)
+  refuseUnexpectedLogins(entries, manifest)
   for (const e of entries) if (e.path !== 'manifest.json' && !allowedRestorePath(e.path)) throw new Error('The backup contains a file outside the app data.')
   writeAtomic(join(input.dataDir, PENDING_ARCHIVE), plain, undefined, 0o600)
   writeAtomic(join(input.dataDir, PENDING_MARKER), JSON.stringify({ archive: PENDING_ARCHIVE, created: new Date().toISOString(), manifest }, null, 2), undefined, 0o600)
@@ -306,6 +314,7 @@ export function applyPendingRestore(dataDir: string): BackupManifest | null {
     archivePath = pendingArchivePath(dataDir, info)
     const entries = unpackArchive(readFileSync(archivePath))
     const manifest = readArchiveManifest(entries)
+    refuseUnexpectedLogins(entries, manifest)
     const files = entries.filter((e) => e.path !== 'manifest.json')
     for (const e of files) if (!allowedRestorePath(e.path)) throw new Error('The backup contains a file outside the app data.')
     // A backup replaces the current accounts, sessions and extension files; absent settings/lock mean setup.
