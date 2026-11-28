@@ -13,5 +13,6 @@ export function loadInbox(dir: string): InboxItem[] {
 }
 
 export function saveInbox(dir: string, items: InboxItem[]): void {
-  writeAtomic(join(dir, 'inbox.json'), JSON.stringify({ v: 1, items: normalizeInbox(items) }, null, 2))
+  // Notification text is personal, so inbox.json is readable by the user only.
+  writeAtomic(join(dir, 'inbox.json'), JSON.stringify({ v: 1, items: normalizeInbox(items) }, null, 2), undefined, 0o600)
 }

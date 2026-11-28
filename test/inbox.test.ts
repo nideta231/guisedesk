@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -88,6 +88,7 @@ describe('notification inbox (D64)', () => {
     saveInbox(dir, items)
     expect(loadInbox(dir)).toEqual(items)
     expect(JSON.parse(readFileSync(join(dir, 'inbox.json'), 'utf8')).v).toBe(1)
+    expect(statSync(join(dir, 'inbox.json')).mode & 0o777).toBe(0o600)
     writeFileSync(join(dir, 'inbox.json'), 'not json')
     expect(loadInbox(dir)).toEqual([])
   })
