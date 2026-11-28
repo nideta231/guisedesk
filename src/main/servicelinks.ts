@@ -36,6 +36,17 @@ export function siblingsFor<T extends Acc>(account: T, accounts: T[], disabled: 
   return sidebarOrder(accounts.filter((a) => a.serviceId === account.serviceId && partitionKey(a) !== partitionKey(account) && homesOf(a).join() === homesOf(account).join()))
 }
 
+/** A URL safe to load in another account's session: http(s) only, after unwrapping a redirect wrapper. */
+export function safeWebUrl(url: unknown): string | null {
+  if (typeof url !== 'string') return null
+  try {
+    const u = new URL(unwrap(url))
+    return u.protocol === 'http:' || u.protocol === 'https:' ? u.href : null
+  } catch {
+    return null
+  }
+}
+
 /** The URL "Open in another account" opens (D46): a home-host link, else the post under the cursor, else the page. */
 export function pickTarget(linkURL: string, postURL: string | null | undefined, pageURL: string, homeHosts: string[]): string {
   try {

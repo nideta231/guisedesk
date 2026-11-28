@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { candidatesFor, pickTarget, siblingsFor } from '../src/main/servicelinks'
+import { candidatesFor, pickTarget, safeWebUrl, siblingsFor } from '../src/main/servicelinks'
 import { PRESETS } from '../src/main/presets'
 
 const acc = (id: string, serviceId: string, order: number, custom?: { name: string; url: string; hosts: string[] }) =>
@@ -85,6 +85,19 @@ describe('pickTarget (D46)', () => {
   })
   it('a non-http link is ignored', () => {
     expect(pickTarget('javascript:alert(1)', '', 'https://threads.com/feed', homes)).toBe('https://threads.com/feed')
+  })
+})
+
+describe('safeWebUrl', () => {
+  it('accepts an https post URL and rejects non-web schemes', () => {
+    expect(safeWebUrl('https://www.threads.com/@a/post/1')).toBe('https://www.threads.com/@a/post/1')
+    for (const u of ['javascript:alert(1)', 'javascript:.../post/', 'data:text/html,<b>x</b>', 'file:///etc/passwd', 'mailto:a@b.c', 'not a url', null, 42])
+      expect(safeWebUrl(u)).toBeNull()
+  })
+  it('drops a page-controlled pickTarget result that is not a web URL', () => {
+    const homes = ['threads.com']
+    expect(safeWebUrl(pickTarget('javascript:.../post/', null, 'javascript:.../post/', homes))).toBeNull()
+    expect(safeWebUrl(pickTarget('https://www.threads.com/@a/post/1', null, '', homes))).toBe('https://www.threads.com/@a/post/1')
   })
 })
 

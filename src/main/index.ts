@@ -12,7 +12,7 @@ import { cacheFavicon, readIcon, type Fetcher } from './favicon'
 import { validateNewAccount } from './validate'
 import { presetFor, CHROME_UA } from './presets'
 import { redirectAllowed, route } from './links'
-import { candidatesFor, homesOf, pickTarget, siblingsFor } from './servicelinks'
+import { candidatesFor, homesOf, pickTarget, safeWebUrl, siblingsFor } from './servicelinks'
 import { acceptPopupRequest, createPopups, openTarget } from './popups'
 import { blockedLine, isGesture, loadBlocking, popupBlocked, saveBlocking, type BlockingSettings } from './blocking'
 import { createAdblock } from './adblock'
@@ -281,6 +281,8 @@ function hookNav(wc: Electron.WebContents, a: Account): (url: string) => boolean
 
 /** A normal window on the account's session, no app preload (D37). A same-service window.open inside it loads in itself. */
 function openPopup(a: Account, url: string): void {
+  const target = safeWebUrl(url)
+  if (!target) return
   const w = new BrowserWindow({
     width: 1000,
     height: 800,
@@ -338,7 +340,7 @@ function openPopup(a: Account, url: string): void {
   w.on('closed', () => popups.forget(w))
   // A popup follows its account's session proxy too (D63).
   void configureProxy(wc.session, proxyFor(a)).then(() => {
-    if (!wc.isDestroyed()) wc.loadURL(url)
+    if (!wc.isDestroyed()) wc.loadURL(target)
   })
 }
 
@@ -419,7 +421,12 @@ function hookContextMenu(wc: Electron.WebContents): void {
         case 'open-link':
           if (/^https?:\/\//i.test(p.linkURL)) void shell.openExternal(p.linkURL)
           break
-        case 'open-in-other': if (me) openIn(pickTarget(p.linkURL, post, wc.getURL(), homesOf(me)), sibs); break
+        case 'open-in-other': {
+          // The page controls this URL; only a web one may load in another account's session.
+          const target = me ? safeWebUrl(pickTarget(p.linkURL, post, wc.getURL(), homesOf(me))) : null
+          if (target) openIn(target, sibs)
+          break
+        }
         case 'copy-link': clipboard.writeText(p.linkURL); break
         case 'save-image': wc.downloadURL(p.srcURL); break
         case 'copy-image': wc.copyImageAt(p.x, p.y); break
@@ -1724,12 +1731,14 @@ function createWindow(): BrowserWindow {
   let pending: { id: number; url: string; ids: string[] } | undefined
   let choiceSeq = 0
   const offer = (url: string, c: Account[]) => {
-    if (c.length === 1) return openPopup(c[0], url)
-    pending = { id: ++choiceSeq, url, ids: c.map((a) => a.id) }
+    const safe = safeWebUrl(url)
+    if (!safe) return
+    if (c.length === 1) return openPopup(c[0], safe)
+    pending = { id: ++choiceSeq, url: safe, ids: c.map((a) => a.id) }
     showWindow()
     win.webContents.send('links:choose', {
       id: pending.id,
-      url,
+      url: safe,
       candidates: c.map((a) => ({ id: a.id, label: a.label, colour: a.colour, serviceId: a.serviceId }))
     })
   }
@@ -1740,7 +1749,8 @@ function createWindow(): BrowserWindow {
   }
   siblingsOf = (a) => siblingsFor(a, accounts, [...disabled])
   openIn = (url, c) => {
-    if (isUnlocked() && c.length) offer(url, c)
+    const safe = safeWebUrl(url)
+    if (isUnlocked() && safe && c.length) offer(safe, c)
   }
   gipc.on('links:chosen', (e: { sender: { id: number } }, id: unknown, choice: unknown) => {
     const p = pending
