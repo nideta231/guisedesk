@@ -42,6 +42,38 @@ export function shouldBlur(box: { w: number; h: number }, tag: string): boolean 
   return ['img', 'video', 'bg'].includes(tag.toLowerCase()) && box.w >= MIN && box.h >= MIN
 }
 
+/**
+ * The outermost elements of a set: any element with an ancestor in the same set is dropped. Each parent chain is
+ * walked once (memoised), so a deep page of nested marks does not turn every scan into an O(n^2) pass.
+ */
+export function topLevel(found: Set<Element>): Set<Element> {
+  if (found.size < 2) return found
+  const nested = new Set<Element>()
+  const hasFound = new Map<Element, boolean>()
+  const insideFound = (start: Element): boolean => {
+    const path: Element[] = []
+    let cur: Element | null = start
+    let verdict = false
+    while (cur) {
+      const known = hasFound.get(cur)
+      if (known !== undefined) { verdict = known; break }
+      path.push(cur)
+      if (found.has(cur)) { verdict = true; break }
+      cur = cur.parentElement
+    }
+    for (const e of path) hasFound.set(e, verdict)
+    return verdict
+  }
+  for (const e of found) {
+    const parent = e.parentElement
+    if (parent && insideFound(parent)) nested.add(e)
+  }
+  if (!nested.size) return found
+  const out = new Set(found)
+  for (const e of nested) out.delete(e)
+  return out
+}
+
 /** Reads main's `--gd-blur=<json>` argument. */
 export function parseBlurHint(argv: string[]): BlurHint | null {
   const raw = argv.find((x) => x.startsWith('--gd-blur='))
@@ -96,9 +128,9 @@ export function watchBlur(win: Window & typeof globalThis, hint: BlurHint, parts
         if (shouldBlur({ w: r.width, h: r.height }, tag)) found.add(e)
       }
     }
-    for (const e of [...found]) if ([...found].some((o) => o !== e && o.contains(e))) found.delete(e)
-    for (const e of marked) if (!found.has(e)) { e.removeAttribute('data-gd-blur'); e.removeAttribute('data-gd-hover'); marked.delete(e) }
-    for (const e of found) if (!marked.has(e)) { e.setAttribute('data-gd-blur', ''); marked.add(e) }
+    const top = topLevel(found)
+    for (const e of marked) if (!top.has(e)) { e.removeAttribute('data-gd-blur'); e.removeAttribute('data-gd-hover'); marked.delete(e) }
+    for (const e of top) if (!marked.has(e)) { e.setAttribute('data-gd-blur', ''); marked.add(e) }
   }
   let scanTimer: ReturnType<typeof setTimeout> | null = null
   const schedule = () => { if (scanTimer === null) scanTimer = setTimeout(() => { scanTimer = null; scan() }, SCAN_MS) }

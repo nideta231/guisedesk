@@ -4,7 +4,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { mount } from '@vue/test-utils'
-import { blurCss, parseBlurHint, partsOn, selectorsFor, shouldBlur, watchBlur } from '../src/preload/blur'
+import { blurCss, parseBlurHint, partsOn, selectorsFor, shouldBlur, topLevel, watchBlur } from '../src/preload/blur'
 import { addAccount, loadAccounts, setBlurMedia, setBlurPart } from '../src/main/accounts'
 import { PRESETS } from '../src/main/presets'
 import AccountSheet from '../src/renderer/src/AccountSheet.vue'
@@ -39,6 +39,34 @@ describe('shouldBlur', () => {
     expect(shouldBlur({ w: 500, h: 99 }, 'IMG')).toBe(false)
     expect(shouldBlur({ w: 0, h: 0 }, 'PICTURE')).toBe(false)
     expect(shouldBlur({ w: 500, h: 500 }, 'PICTURE')).toBe(false)
+  })
+})
+
+describe('topLevel', () => {
+  it('keeps only the outermost of 200 nested marks and visits each parent once', () => {
+    document.body.innerHTML = ''
+    const nodes: Element[] = []
+    const base = Object.getOwnPropertyDescriptor(Node.prototype, 'parentElement')!
+    let visits = 0
+    let parent: Element = document.body
+    for (let i = 0; i < 200; i++) {
+      const e = document.createElement('div')
+      parent.appendChild(e)
+      Object.defineProperty(e, 'parentElement', { configurable: true, get() { visits++; return base.get!.call(this) as Element | null } })
+      nodes.push(e)
+      parent = e
+    }
+    const out = topLevel(new Set(nodes))
+    expect([...out]).toEqual([nodes[0]])
+    expect(visits).toBeLessThanOrEqual(nodes.length + 8)
+  })
+
+  it('keeps siblings from separate branches and leaves small sets alone', () => {
+    document.body.innerHTML = '<div id="a"><div id="b"></div></div><div id="c"></div>'
+    const a = document.getElementById('a')!, b = document.getElementById('b')!, c = document.getElementById('c')!
+    expect([...topLevel(new Set([a, b, c]))]).toEqual([a, c])
+    const one = new Set([b])
+    expect(topLevel(one)).toBe(one)
   })
 })
 
