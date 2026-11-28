@@ -43,6 +43,24 @@ describe('reset', () => {
     expect(readFileSync(outside, 'utf8')).toBe('mine')
   })
 
+  it('forgets saved proxy passwords, split and the selected account but keeps DND and other prefs', () => {
+    const { dir } = fixture()
+    writeFileSync(join(dir, 'settings.json'), JSON.stringify({
+      idleLock: 5,
+      dnd: true,
+      quietWorkHours: true,
+      proxyAuth: { ig1: { username: 'u', password: 'p' } },
+      split: { b: 'ig2', ratio: 0.5 },
+      selectedAccount: 'ig1'
+    }))
+    expect(resetData(dir, 'RESET')).toEqual({ ok: true })
+    const settings = JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8'))
+    expect(settings.proxyAuth).toBeUndefined()
+    expect(settings.split).toBeUndefined()
+    expect(settings.selectedAccount).toBeUndefined()
+    expect(settings).toMatchObject({ idleLock: 5, dnd: true, quietWorkHours: true })
+  })
+
   it('works on a data dir that has none of those yet', () => {
     const dir = mkdtempSync(join(tmpdir(), 'gd-reset-empty-'))
     expect(resetData(dir, 'RESET')).toEqual({ ok: true })
