@@ -57,7 +57,7 @@ import { createInboxSaver, loadInbox, saveInbox } from './inboxstore'
 import { flushSessions, flushThenClose, sessionKeys } from './sessionlife'
 import { collectLogins, createLoginScheduler } from './logincheck'
 import { onceMainFrameSettled } from './mainframe'
-import { isReportableLoadError } from './pageerror'
+import { isReportableLoadError, shouldClearErrorOnFinish, shouldClearErrorOnStart, shouldReattachOnLoad } from './pageerror'
 import { goBack, goForward, navState } from './nav'
 import { openAppTarget } from './appopen'
 import { watchViewHealth } from './viewhealth'
@@ -763,12 +763,23 @@ function viewFor(a: Account): WebContentsView {
       if (w && !w.isDestroyed() && attached === v) detach(w, v!)
       sendPageError({ id: a.id, code, description })
     })
-    wc.on('did-start-loading', () => {
-      sendPageError({ id: a.id, cleared: true })
+    // A failed load is followed by Chromium's own chrome-error:// page. Its load events must not clear the card
+    // (c7 review), and a page that reloads itself must not come back over the lock screen or a dialog.
+    const reattachIfAllowed = () => {
       const w = mainWin
       if (w && !w.isDestroyed() && attached === v) attach(w, v!)
+    }
+    wc.on('did-start-navigation', (d) => {
+      if (!shouldClearErrorOnStart(d)) return
+      sendPageError({ id: a.id, cleared: true })
+      if (shouldReattachOnLoad({ ...d, isSelected: attached === v, unlocked: isUnlocked(), dialogOpen })) reattachIfAllowed()
     })
-    wc.on('did-finish-load', () => sendPageError({ id: a.id, cleared: true }))
+    wc.on('did-finish-load', () => {
+      const url = wc.getURL()
+      if (!shouldClearErrorOnFinish(url)) return
+      sendPageError({ id: a.id, cleared: true })
+      if (shouldReattachOnLoad({ isMainFrame: true, isSameDocument: false, url, isSelected: attached === v, unlocked: isUnlocked(), dialogOpen })) reattachIfAllowed()
+    })
     // Back and Forward (UX-013): the page's history changes on every navigation.
     const pushNav = () => {
       const w = mainWin

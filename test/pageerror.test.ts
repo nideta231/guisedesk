@@ -2,7 +2,15 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import App from '../src/renderer/src/App.vue'
-import { ERR_ABORTED, isReportableLoadError } from '../src/main/pageerror'
+import {
+  ERR_ABORTED,
+  isErrorPageUrl,
+  isRealPageUrl,
+  isReportableLoadError,
+  shouldClearErrorOnFinish,
+  shouldClearErrorOnStart,
+  shouldReattachOnLoad
+} from '../src/main/pageerror'
 
 describe('isReportableLoadError (UX-010)', () => {
   it('accepts a real main-frame failure', () => {
@@ -14,6 +22,47 @@ describe('isReportableLoadError (UX-010)', () => {
     expect(isReportableLoadError(false, -105)).toBe(false)
     expect(isReportableLoadError(true, ERR_ABORTED)).toBe(false)
     expect(isReportableLoadError(false, ERR_ABORTED)).toBe(false)
+  })
+})
+
+describe('error page URLs (UX-010r)', () => {
+  it('recognises Chromium own error page and a real http(s) document', () => {
+    expect(isErrorPageUrl('chrome-error://chromewebdata/')).toBe(true)
+    expect(isErrorPageUrl('https://web.whatsapp.com/')).toBe(false)
+    expect(isErrorPageUrl(undefined)).toBe(false)
+    expect(isRealPageUrl('https://web.whatsapp.com/')).toBe(true)
+    expect(isRealPageUrl('http://127.0.0.1:8080/')).toBe(true)
+    expect(isRealPageUrl('chrome-error://chromewebdata/')).toBe(false)
+  })
+
+  it('keeps the card when the failed load is followed by the error page', () => {
+    const errorPage = { isMainFrame: true, isSameDocument: false, url: 'chrome-error://chromewebdata/' }
+    expect(shouldClearErrorOnStart(errorPage)).toBe(false)
+    expect(shouldClearErrorOnFinish(errorPage.url)).toBe(false)
+  })
+
+  it('clears the card on a real reload and on a non-error finish', () => {
+    const reload = { isMainFrame: true, isSameDocument: false, url: 'https://web.whatsapp.com/' }
+    expect(shouldClearErrorOnStart(reload)).toBe(true)
+    expect(shouldClearErrorOnFinish(reload.url)).toBe(true)
+    expect(shouldClearErrorOnStart({ ...reload, isSameDocument: true })).toBe(false)
+    expect(shouldClearErrorOnStart({ ...reload, isMainFrame: false })).toBe(false)
+  })
+
+  it('does not attach a page that starts loading while locked or with a dialog open', () => {
+    const base = {
+      isMainFrame: true,
+      isSameDocument: false,
+      url: 'https://web.whatsapp.com/',
+      isSelected: true,
+      unlocked: true,
+      dialogOpen: false
+    }
+    expect(shouldReattachOnLoad(base)).toBe(true)
+    expect(shouldReattachOnLoad({ ...base, unlocked: false })).toBe(false)
+    expect(shouldReattachOnLoad({ ...base, dialogOpen: true })).toBe(false)
+    expect(shouldReattachOnLoad({ ...base, isSelected: false })).toBe(false)
+    expect(shouldReattachOnLoad({ ...base, url: 'chrome-error://chromewebdata/' })).toBe(false)
   })
 })
 
