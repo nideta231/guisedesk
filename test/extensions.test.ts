@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { flushPromises, mount } from '@vue/test-utils'
@@ -275,6 +275,17 @@ describe('extension download (D49)', () => {
     expect(a).toBe(b); expect(b).toBe(c)
     expect(await fetch(WAWP)).toBe(a)
     expect(download).toHaveBeenCalledOnce()
+  })
+  it('a scan keeps a freshly touched download folder and prunes it once its mtime is old', () => {
+    const root = mkdtempSync(join(tmpdir(), 'gd-ext-'))
+    unpack(root, WAWP, '5.2.9_0')
+    const temp = unpack(root, WAWP, '9b7a5e0c-1c3d-4a5b-8e9f-0a1b2c3d4e5f', false)
+    expect(listInstalled(root).map((x) => x.id)).toEqual([WAWP])
+    expect(existsSync(temp)).toBe(true)
+    const old = new Date(Date.now() - 11 * 60_000)
+    utimesSync(temp, old, old)
+    expect(listInstalled(root).map((x) => x.id)).toEqual([WAWP])
+    expect(existsSync(temp)).toBe(false)
   })
   it('removing during an in-flight download deletes it again and the next fetch starts fresh', async () => {
     const root = mkdtempSync(join(tmpdir(), 'gd-ext-'))

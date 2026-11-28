@@ -1,7 +1,7 @@
 // Chrome extensions (D49). Installed once from a Chrome Web Store link into <data>/extensions, then turned on per
 // account (Account.extensions). electron-chrome-extensions adds the chrome.tabs / windows / action APIs Electron lacks.
 // Plain TS, no electron import.
-import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { writeAtomic } from './atomic'
 
@@ -111,16 +111,26 @@ export function saveUpdateTimes(dataDir: string, v: Record<string, string>): voi
 /**
  * The newest complete unpacked copy (<dir>/<id>/<version>_0 with a manifest.json), or null. Leftovers from an
  * interrupted install (temp uuid folders, version folders without a manifest) are removed so the next download can
- * rename into place (ENOTEMPTY otherwise).
+ * rename into place (ENOTEMPTY otherwise). With protectFreshMs, an entry modified that recently is left alone: a
+ * scan while Add is writing its temp folder must not delete the download.
  */
-export function readyCopy(extDir: string, id: string): string | null {
+export function readyCopy(extDir: string, id: string, opts: { protectFreshMs?: number; now?: () => number } = {}): string | null {
   const root = join(extDir, id)
   if (!existsSync(root)) return null
+  const protect = opts.protectFreshMs ?? 0
+  const now = (opts.now ?? Date.now)()
   let best: { path: string; v: number[] } | null = null
   for (const name of readdirSync(root)) {
     const path = join(root, name)
     const m = /^(\d+(?:\.\d+)*)_0$/.exec(name)
     if (!m || !existsSync(join(path, 'manifest.json'))) {
+      if (protect > 0) {
+        try {
+          if (now - statSync(path).mtimeMs < protect) continue
+        } catch {
+          /* vanished between readdir and stat */
+        }
+      }
       rmSync(path, { recursive: true, force: true })
       continue
     }
@@ -177,13 +187,16 @@ export function manifestName(path: string): string {
   }
 }
 
+/** How long an in-progress download's folder is protected from a scan's housekeeping. */
+export const FRESH_INSTALL_MS = 10 * 60_000
+
 /** Every installed extension (complete copies only), sorted by name. */
 export function listInstalled(extDir: string): InstalledExtension[] {
   if (!existsSync(extDir)) return []
   const out: InstalledExtension[] = []
   for (const id of readdirSync(extDir)) {
     if (!/^[a-p]{32}$/.test(id)) continue
-    const path = readyCopy(extDir, id)
+    const path = readyCopy(extDir, id, { protectFreshMs: FRESH_INSTALL_MS })
     if (!path) continue
     out.push({ id, name: manifestName(path) || id, version: path.split('/').pop()!.replace(/_0$/, ''), path })
   }
