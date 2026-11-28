@@ -35,6 +35,7 @@ import { createLock, isLockShortcut } from './lock'
 import { appOnly, createGuardedIpc } from './guard'
 import { wireTriggers } from './triggers'
 import { resetData, RESET_WORD } from './reset'
+import { runReset } from './resetflow'
 import { isAutostart, setAutostart, startsHidden } from './autostart'
 import { applyIdle } from './prefs'
 import { checkForUpdate, realRun, type UpdateInfo } from './updater'
@@ -1370,12 +1371,18 @@ function createWindow(): BrowserWindow {
       v.webContents.close()
     }
     views.clear()
-    for (const key of keys) {
-      const ses = session.fromPartition(`persist:${key}`)
-      await ses.clearStorageData().catch(() => {})
-      await ses.clearCache().catch(() => {})
-    }
-    const r = resetData(dir, typed)
+    const r = await runReset({
+      // Popups are separate windows with their own live sessions; close them before any data goes.
+      closePopups: () => popups.closeAll(),
+      clearStorage: async () => {
+        for (const key of keys) {
+          const ses = session.fromPartition(`persist:${key}`)
+          await ses.clearStorageData().catch(() => {})
+          await ses.clearCache().catch(() => {})
+        }
+      },
+      wipe: () => resetData(dir, typed)
+    })
     if ('error' in r) return r
     accounts = []
     selectedId = undefined

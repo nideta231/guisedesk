@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { resetData, wipeFiles } from '../src/main/reset'
+import { runReset } from '../src/main/resetflow'
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'gd-reset-'))
@@ -45,6 +46,31 @@ describe('reset', () => {
   it('works on a data dir that has none of those yet', () => {
     const dir = mkdtempSync(join(tmpdir(), 'gd-reset-empty-'))
     expect(resetData(dir, 'RESET')).toEqual({ ok: true })
+  })
+
+  it('closes popups first, then clears storage, then wipes, even when no views are open', async () => {
+    const order: string[] = []
+    const r = await runReset({
+      closePopups: () => void order.push('closePopups'),
+      clearStorage: async () => void order.push('clearStorage'),
+      wipe: () => {
+        order.push('wipe')
+        return { ok: true }
+      }
+    })
+    expect(order).toEqual(['closePopups', 'clearStorage', 'wipe'])
+    expect(r).toEqual({ ok: true })
+  })
+
+  it('stops before wiping when the confirmation is wrong', async () => {
+    const order: string[] = []
+    const r = await runReset({
+      closePopups: () => void order.push('closePopups'),
+      clearStorage: () => void order.push('clearStorage'),
+      wipe: () => ({ error: 'Type RESET to confirm' })
+    })
+    expect(order).toEqual(['closePopups', 'clearStorage'])
+    expect(r).toHaveProperty('error')
   })
 
   it('refuses to remove any path outside the data dir', () => {
