@@ -10,6 +10,8 @@ const emit = defineEmits<{ close: []; select: [accountId: string, itemId: string
 
 const filter = ref('')
 const search = ref('')
+// Clear asks first (UX-021): the history cannot be undone, so the bar turns into a confirm.
+const confirmClear = ref(false)
 const veil = ref<HTMLElement>()
 const glass = ref<HTMLElement>()
 useDialogFocus(glass)
@@ -39,6 +41,11 @@ function openItem(i: InboxItem) {
   if (serviceOff(i.accountId)) emit('open-services')
   else emit('select', i.accountId, i.id)
 }
+
+function clearAll() {
+  confirmClear.value = false
+  emit('clear')
+}
 </script>
 
 <template>
@@ -52,8 +59,15 @@ function openItem(i: InboxItem) {
           <option v-for="a in choices" :key="a.id" :value="a.id">{{ a.label }} · {{ serviceOf(a.id) }}</option>
         </select>
         <input v-model="search" class="inp search" type="search" placeholder="Search notifications" aria-label="Search notifications" />
-        <button class="btn" :disabled="!unread" @click="emit('read-all')">Mark all read</button>
-        <button class="btn" :disabled="!items.length" @click="emit('clear')">Clear</button>
+        <template v-if="confirmClear">
+          <span class="clearconfirm">Clear all notifications?</span>
+          <button class="btn" @click="confirmClear = false">Cancel</button>
+          <button class="btn dng" @click="clearAll">Clear</button>
+        </template>
+        <template v-else>
+          <button class="btn" :disabled="!unread" @click="emit('read-all')">Mark all read</button>
+          <button class="btn" :disabled="!items.length" @click="confirmClear = true">Clear</button>
+        </template>
       </div>
       <div class="list">
         <template v-for="g in groups" :key="g.title">
@@ -91,6 +105,7 @@ function openItem(i: InboxItem) {
 .filter, .search { flex: 1; min-width: 0; margin: 0; height: 32px; padding: 0 10px; font-size: 12.5px; }
 .bar .btn { height: 32px; padding: 0 10px; font-size: 12px; white-space: nowrap; }
 .bar .btn:disabled { opacity: 0.4; cursor: default; }
+.clearconfirm { color: var(--muted); font-size: 12px; white-space: nowrap; }
 .list { max-height: 360px; overflow-y: auto; margin-top: 4px; }
 .day { font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin: 12px 0 4px; }
 .day:first-child { margin-top: 4px; }

@@ -56,15 +56,27 @@ describe('Inbox dialog (D64)', () => {
     expect(w.find('.none').text()).toBe('No notifications match.')
   })
 
-  it('clicking an item asks to select that account; the buttons emit read-all and clear', async () => {
+  it('clicking an item asks to select that account; Mark all read is one click and Clear asks first (UX-021)', async () => {
     const w = mount(Inbox, { props: { items, accounts } })
     await w.findAll('.item')[1].trigger('click')
     expect(w.emitted('select')![0]).toEqual(['a2', 'i2'])
-    const buttons = w.findAll('.bar .btn')
-    await buttons[0].trigger('click')
-    await buttons[1].trigger('click')
+    const button = (text: string) => w.findAll('.bar .btn').find((b) => b.text() === text)!
+    await button('Mark all read').trigger('click')
     expect(w.emitted('read-all')).toHaveLength(1)
+    await button('Clear').trigger('click')
+    expect(w.emitted('clear')).toBeUndefined()
+    expect(w.find('.clearconfirm').text()).toBe('Clear all notifications?')
+    await button('Clear').trigger('click')
     expect(w.emitted('clear')).toHaveLength(1)
+  })
+
+  it('Cancel restores the normal bar without clearing', async () => {
+    const w = mount(Inbox, { props: { items, accounts } })
+    await w.findAll('.bar .btn').find((b) => b.text() === 'Clear')!.trigger('click')
+    await w.findAll('.bar .btn').find((b) => b.text() === 'Cancel')!.trigger('click')
+    expect(w.find('.clearconfirm').exists()).toBe(false)
+    expect(w.findAll('.bar .btn').map((b) => b.text())).toEqual(['Mark all read', 'Clear'])
+    expect(w.emitted('clear')).toBeUndefined()
   })
 
   it('a read row has a Mark unread dot that emits unread without selecting the account', async () => {
@@ -162,7 +174,8 @@ describe('App inbox wiring (D64)', () => {
     expect(w.find('.inbox').exists()).toBe(false)
     await w.find('.foot .bell').trigger('click')
     await flushPromises()
-    await w.findAll('.bar .btn')[1].trigger('click')
+    await w.findAll('.bar .btn').find((b) => b.text() === 'Clear')!.trigger('click')
+    await w.findAll('.bar .btn').find((b) => b.text() === 'Clear')!.trigger('click')
     await flushPromises()
     expect(inboxClear).toHaveBeenCalled()
   })
