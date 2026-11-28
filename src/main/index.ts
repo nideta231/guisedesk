@@ -1691,7 +1691,7 @@ function createWindow(): BrowserWindow {
       win.webContents.focus()
     }
     const total = totalUnread(counts, enabled().map((a) => a.id))
-    tray.setUnread(total, !isUnlocked(), trayUnreadItems(counts, enabled()))
+    tray.setUnread(total, !isUnlocked(), trayUnreadItems(counts, enabled(), !isUnlocked()))
     applyBadge(app, total, !isUnlocked(), process.platform)
     if (!win.isDestroyed()) updateWindowTitle(win, total, !isUnlocked())
     win.webContents.send('lock:changed', lock.info())
@@ -1700,7 +1700,7 @@ function createWindow(): BrowserWindow {
   const push = () => {
     const total = totalUnread(counts, enabled().map((a) => a.id))
     const locked = !isUnlocked()
-    tray.setUnread(total, locked, trayUnreadItems(counts, enabled()))
+    tray.setUnread(total, locked, trayUnreadItems(counts, enabled(), locked))
     applyBadge(app, total, locked, process.platform)
     if (!win.isDestroyed()) updateWindowTitle(win, total, locked)
     if (!win.isDestroyed() && !locked) win.webContents.send('unread:update', counts)

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { bulkTargets, trayChange, trayLook, trayTemplate, trayUnreadItems, type TrayActions } from '../src/main/traymenu'
+import { bulkTargets, trayChange, trayLook, trayTemplate, trayUnreadItems, trayUnreadSig, type TrayActions } from '../src/main/traymenu'
 
 const opts = (over: Partial<TrayActions> = {}): TrayActions => ({
   dnd: false,
@@ -90,6 +90,32 @@ describe('trayUnreadItems (UX-034)', () => {
     menu.submenu![1].click!({ checked: false })
     expect(onUnread).toHaveBeenCalledWith('c')
     expect(trayTemplate(opts({ unread: [] })).find((i) => i.label?.startsWith('Unread'))).toBeUndefined()
+  })
+})
+
+describe('tray Unread rows while locked (UX-034r)', () => {
+  const accounts = [
+    { id: 'a', label: 'Personal', serviceId: 'whatsapp', order: 0 },
+    { id: 'c', label: '@ben', serviceId: 'x', order: 2 }
+  ]
+
+  it('drops every account name and count when locked, both from the items and the menu', () => {
+    expect(trayUnreadItems({ a: 2, c: 5 }, accounts, true)).toEqual([])
+    expect(trayUnreadItems({ a: 2, c: 5 }, accounts, false)).toHaveLength(2)
+    const items = trayUnreadItems({ a: 2, c: 5 }, accounts, false)
+    const labels = (locked: boolean) =>
+      trayTemplate(opts({ unread: items, locked })).filter((i) => i.label).map((i) => i.label)
+    expect(labels(true)).not.toContain('Unread (7)')
+    expect(labels(true)).toEqual(['Show GuiseDesk', 'Lock now', 'Do Not Disturb', 'Reload all accounts', 'Sleep all accounts', 'Settings', 'Quit'])
+    expect(labels(false)).toContain('Unread (7)')
+  })
+
+  it('the tray signature includes the lock state so unlocking rebuilds the submenu without a count change', () => {
+    const items = trayUnreadItems({ a: 2, c: 5 }, accounts)
+    expect(trayUnreadSig(items, true)).not.toBe(trayUnreadSig(items, false))
+    expect(trayUnreadSig(items, true)).toContain('locked')
+    expect(trayUnreadSig([], true)).toBe(trayUnreadSig([], true))
+    expect(trayUnreadSig([], false)).not.toBe(trayUnreadSig([], true))
   })
 })
 

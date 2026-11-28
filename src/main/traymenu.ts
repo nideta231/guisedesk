@@ -21,6 +21,8 @@ export interface TrayUnreadItem {
 
 export interface TrayActions {
   dnd: boolean
+  /** While locked the Unread rows are left out, exactly like the tray dot (D16, UX-034r). */
+  locked?: boolean
   unread?: TrayUnreadItem[]
   onUnread?: (id: string) => void
   onLock: () => void
@@ -32,11 +34,13 @@ export interface TrayActions {
   onQuit: () => void
 }
 
-/** The accounts with unread messages, in sidebar order; a switched-off service is left out (UX-034, BG-016). */
+/** The accounts with unread messages, in sidebar order; a switched-off service is left out (UX-034, BG-016). Locked leaks nothing. */
 export function trayUnreadItems<T extends { id: string; label: string; serviceId: string; order: number; enabled?: boolean }>(
   counts: Record<string, number>,
-  accounts: T[]
+  accounts: T[],
+  locked = false
 ): TrayUnreadItem[] {
+  if (locked) return []
   return sidebarOrder(accounts.filter((a) => a.enabled !== false && (counts[a.id] ?? 0) > 0)).map((a) => ({
     id: a.id,
     label: a.label,
@@ -44,12 +48,17 @@ export function trayUnreadItems<T extends { id: string; label: string; serviceId
   }))
 }
 
+/** What the Unread rows look like, so the tray rebuilds when a count or the lock state changes (UX-034, UX-034r). */
+export function trayUnreadSig(unread: TrayUnreadItem[], locked: boolean): string {
+  return `${locked ? 'locked' : 'unlocked'}|${unread.map((u) => `${u.id}:${u.count}`).join('|')}`
+}
+
 export function trayTemplate(o: TrayActions): TrayMenuItem[] {
   return [
     { label: 'Show GuiseDesk', click: o.onShow },
     { label: 'Lock now', accelerator: 'Ctrl+L', registerAccelerator: false, click: o.onLock },
     { label: 'Do Not Disturb', type: 'checkbox', checked: o.dnd, click: (m) => o.onDnd(m.checked) },
-    ...(o.unread?.length
+    ...(o.unread?.length && !o.locked
       ? [
           {
             label: `Unread (${o.unread.reduce((n, u) => n + u.count, 0)})`,
