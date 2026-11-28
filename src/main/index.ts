@@ -1505,6 +1505,8 @@ function createWindow(): BrowserWindow {
     dnd = !!on
     saveDnd(dir, dnd)
     tray.setDnd(dnd)
+    // The Settings switch changes the same state as the tray (UX-049): the sidebar chip follows too.
+    if (!win.isDestroyed() && isUnlocked()) win.webContents.send('prefs:dnd-changed', dnd)
     return true
   })
   // Quiet outside work hours (D58): its own switch, next to DND; the tray DND state is unchanged.
@@ -1513,6 +1515,8 @@ function createWindow(): BrowserWindow {
     quietWork = !!on
     saveQuietWorkHours(dir, quietWork)
     appendEvent(dir, `quiet outside work hours ${quietWork ? 'on' : 'off'}`)
+    // The sidebar DND chip also covers quiet hours (UX-049).
+    if (!win.isDestroyed() && isUnlocked()) win.webContents.send('prefs:quiet-changed', quietWork)
     return true
   })
   gipc.handle('prefs:autostart', (e: { sender: { id: number } }, on: unknown) => {

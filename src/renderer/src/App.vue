@@ -46,6 +46,10 @@ const ready = ref(false)
 // Forgot on the lock screen leads to the reset confirm screen.
 const resetting = ref(false)
 // Update status from main (D29); the sidebar pill and Settings > General show it. The pill opens General.
+// Do Not Disturb and quiet hours (UX-049): the sidebar footer shows a bell-off chip while either is on.
+const dnd = ref(false)
+const quiet = ref(false)
+const dndOn = computed(() => dnd.value || quiet.value)
 // Notifications inbox (D64): the sidebar bell's unread count and the dialog's items.
 const inbox = ref<InboxSnapshot>({ items: [], unread: 0 })
 const inboxOpen = ref(false)
@@ -87,6 +91,11 @@ async function loadAccounts() {
   if (box) inbox.value = box
   const b = await window.guisedesk.blockState?.()
   if (b) block.value = b
+  const p = await window.guisedesk.prefs?.()
+  if (p) {
+    dnd.value = !!p.dnd
+    quiet.value = !!p.quietWorkHours
+  }
 }
 
 function wipe() {
@@ -108,6 +117,8 @@ function wipe() {
   split.value = undefined
   pageError.value = undefined
   navStates.value = {}
+  dnd.value = false
+  quiet.value = false
 }
 
 // Any layer that must have the service view off the window (D59): Settings, Add account, the link chooser, the dialogs.
@@ -189,6 +200,8 @@ onMounted(async () => {
     pageError.value = { id: p.id, description: p.description ?? 'The page could not be loaded.' }
   })
   window.guisedesk.onUnread((c) => (counts.value = { ...c }))
+  window.guisedesk.onDnd?.((on) => (dnd.value = on))
+  window.guisedesk.onQuiet?.((on) => (quiet.value = on))
   window.guisedesk.onInbox?.((s) => (inbox.value = s))
   window.guisedesk.onSelected((id) => {
     selectedId.value = id
@@ -440,6 +453,11 @@ function openUpdates() {
   void nextTick(() => (settingsTab.value = 'General'))
 }
 
+// The sidebar DND chip (UX-049): straight to the tab that turns it off.
+function openNotificationsSettings() {
+  openSettingsAt('Notifications')
+}
+
 async function checkUpdate() {
   update.value = { state: 'checking' }
   update.value = await window.guisedesk.updateCheck()
@@ -523,7 +541,7 @@ async function add(input: Parameters<Window['guisedesk']['add']>[0]) {
       <button class="showside" title="Show sidebar (Ctrl+B)" aria-label="Show sidebar" @click="hideSidebar(false)"><svg class="i" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" /></svg></button>
       <button class="bell" :title="inbox.unread ? inbox.unread + ' unread notifications' : 'Notifications'" aria-label="Notifications" @click="openInbox"><svg class="i" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0" /></svg><span v-if="inbox.unread > 0" class="badge">{{ formatCount(inbox.unread) }}</span></button>
     </div>
-    <Sidebar v-if="!sideHidden" :width="sideWidthPx" @hide="hideSidebar(true)" @resize="resizeSidebar" :accounts="shown" :selected-id="selectedId" :counts="counts" :asleep="asleepIds" :collapsed="collapsed" :update="update.state === 'available'" :inbox-unread="inbox.unread" :disabled="disabled" @inbox="openInbox" @update="openUpdates" @toggle="toggleSidebar" @select="select" @add="openAdd" @mute="mute" @sleep="sleepNow" @reorder="reorder" @settings="openSettingsAt" @account="openSheet" />
+    <Sidebar v-if="!sideHidden" :width="sideWidthPx" @hide="hideSidebar(true)" @resize="resizeSidebar" :accounts="shown" :selected-id="selectedId" :counts="counts" :asleep="asleepIds" :collapsed="collapsed" :update="update.state === 'available'" :inbox-unread="inbox.unread" :disabled="disabled" :dnd="dndOn" @inbox="openInbox" @notifications="openNotificationsSettings" @update="openUpdates" @toggle="toggleSidebar" @select="select" @add="openAdd" @mute="mute" @sleep="sleepNow" @reorder="reorder" @settings="openSettingsAt" @account="openSheet" />
     <main class="main">
       <TopBar v-if="!settingsOpen && current" :account="current" :asleep="!!sleep[current.id]" :lock="lockChip" :proxy="current.proxy" :split="!!split" :nav="nav" @lock-menu="openLockMenu" @proxy-menu="openProxyMenu(current!.id)" @reload="reload(current!.id)" @home="home(current!.id)" @back="back(current!.id)" @forward="forward(current!.id)" @mute="(m) => mute(current!.id, m)" @lock="lockNow" @sleep="sleepNow(current!.id)" @settings="openSheet(current.id)" @reset-zoom="resetZoom(current!.id)" :ads-on="block.ads" :blocked="block.accounts[current.id]?.blocked ?? 0" :popup="block.accounts[current.id]?.popup" @open-popup="openBlockedPopup(current!.id)" @shield="shieldMenu(current!.id)" @extensions="extensionMenu(current!.id)" @split-menu="openSplitMenu" @close-split="closeSplit" />
       <Settings v-if="settingsOpen" :accounts="accounts" :disabled="disabled" :update="update" :tab="settingsTab" @check="checkUpdate" @apply="applyUpdate" @back="closeSettings" @toggle="toggleService" @open="(id) => (sheetId = id)" @unmute="(id) => mute(id, false)" @reset="resetting = true" @shortcuts="openHelp" />

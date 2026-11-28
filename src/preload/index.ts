@@ -135,6 +135,7 @@ if (service) {
   setDnd: (on: boolean) => ipcRenderer.invoke('prefs:dnd', on),
   onDnd: (cb: (on: boolean) => void) => listen('prefs:dnd-changed', cb),
   setQuietWorkHours: (on: boolean) => ipcRenderer.invoke('prefs:quiet-work-hours', on),
+  onQuiet: (cb: (on: boolean) => void) => listen('prefs:quiet-changed', cb),
   setStartOnLogin: (on: boolean) => ipcRenderer.invoke('prefs:autostart', on),
   changeLock: (current: string, kind: string, secret: string, repeat: string) => ipcRenderer.invoke('lock:change', current, kind, secret, repeat),
   reset: (typed: string) => ipcRenderer.invoke('lock:reset', typed),

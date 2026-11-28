@@ -209,6 +209,29 @@ describe('Sidebar', () => {
     })
   })
 
+  describe('Do Not Disturb chip (UX-049)', () => {
+    it('shows a bell-off chip with the tooltip while Do Not Disturb is on and asks for Notifications', async () => {
+      const c = mount(Sidebar, { props: { accounts, dnd: true } })
+      const chip = c.find('.foot .dnd')
+      expect(chip.exists()).toBe(true)
+      expect(chip.attributes('title')).toBe('Do Not Disturb is on - click to change')
+      expect(chip.attributes('aria-label')).toBe('Do Not Disturb is on - click to change')
+      await chip.trigger('click')
+      expect(c.emitted('notifications')).toHaveLength(1)
+    })
+
+    it('hides it when Do Not Disturb is off', () => {
+      expect(mount(Sidebar, { props: { accounts, dnd: false } }).find('.foot .dnd').exists()).toBe(false)
+      expect(mount(Sidebar, { props: { accounts } }).find('.foot .dnd').exists()).toBe(false)
+    })
+
+    it('keeps the chip in the rail', () => {
+      const c = mount(Sidebar, { props: { accounts, dnd: true, collapsed: true } })
+      expect(c.find('.foot .dnd').exists()).toBe(true)
+      expect(c.find('.foot .dnd').attributes('aria-label')).toBe('Do Not Disturb is on - click to change')
+    })
+  })
+
   it('shows GuiseDesk v<package.json version> in the footer in full mode only', () => {
     expect(version).toMatch(/^\d+\.\d+\.\d+$/)
     expect(w.find('.foot .ver').text()).toBe(`GuiseDesk v${version}`)
@@ -289,6 +312,51 @@ describe('App sidebar state', () => {
     push(true)
     await flushPromises()
     expect(a.find('.side').classes()).toContain('mini')
+  })
+})
+
+describe('App DND wiring (UX-049)', () => {
+  it('reads the state at startup, follows a push and opens Settings on Notifications from the chip', async () => {
+    const { flushPromises } = await import('@vue/test-utils')
+    let pushDnd: (on: boolean) => void = () => {}
+    ;(window as unknown as { guisedesk: unknown }).guisedesk = {
+      lockState: async () => ({ state: 'unlocked' }),
+      onLock: () => {},
+      state: async () => ({ accounts, selectedId: 'wa1', disabledServices: [] }),
+      unread: async () => ({}),
+      onUnread: () => {},
+      onSelected: () => {},
+      onOpenSettings: () => {},
+      sleep: async () => ({}),
+      onSleep: () => {},
+      select: () => {},
+      dialog: () => {},
+      setSidebar: () => {},
+      onSidebar: () => {},
+      onZoom: () => {},
+      onLinkChoose: () => {},
+      onRowMenuPick: () => {},
+      onUpdate: () => {},
+      updateState: async () => ({ state: 'none' }),
+      prefs: async () => ({ idleLock: 10, dnd: true, quietWorkHours: false, startOnLogin: false }),
+      onDnd: (cb: (on: boolean) => void) => {
+        pushDnd = cb
+        return () => {}
+      },
+      onQuiet: () => () => {}
+    }
+    const w = mount(App)
+    await flushPromises()
+    expect(w.find('.foot .dnd').exists()).toBe(true)
+    pushDnd(false)
+    await flushPromises()
+    expect(w.find('.foot .dnd').exists()).toBe(false)
+    pushDnd(true)
+    await flushPromises()
+    await w.find('.foot .dnd').trigger('click')
+    await flushPromises()
+    expect(w.find('.settings').exists()).toBe(true)
+    expect(w.find('.tabs .sel').text()).toBe('Notifications')
   })
 })
 

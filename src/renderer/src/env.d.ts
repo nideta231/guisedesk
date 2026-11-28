@@ -150,6 +150,8 @@ interface Window {
     onDnd(cb: (on: boolean) => void): Unsubscribe
     /** Quiet outside work hours (D58), separate from the tray DND switch. */
     setQuietWorkHours(on: boolean): Promise<boolean>
+    /** The Settings switch changed quiet hours (UX-049). */
+    onQuiet(cb: (on: boolean) => void): Unsubscribe
     setStartOnLogin(on: boolean): Promise<boolean>
     /** Needs the current PIN or password; main applies the setup rules to the new one. */
     changeLock(current: string, kind: 'pin' | 'password', secret: string, repeat: string): Promise<{ ok: true } | { error: string; waitUntil?: number }>
