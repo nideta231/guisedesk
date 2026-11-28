@@ -52,6 +52,15 @@ export function splitBounds(panel: Bounds, ratio: number): { left: Bounds; right
 /** A pointer position inside the panel as a clamped split ratio. */
 export const splitRatioAt = (clientX: number, left: number, width: number): number => (width > 0 ? clampSplit((clientX - left) / width) : 0.5)
 
+/** The next row in a flat list for the sidebar's arrow keys (UX-001). index < 0 starts at the matching end. */
+export function nextRow(index: number, delta: number, length: number, wrap: boolean): number {
+  if (length <= 0) return -1
+  if (index < 0) return delta > 0 ? 0 : length - 1
+  const next = index + delta
+  if (wrap) return ((next % length) + length) % length
+  return Math.min(length - 1, Math.max(0, next))
+}
+
 /** Ctrl+B, as Electron reports it in before-input-event. */
 export const isSidebarShortcut = (i: { type: string; control?: boolean; alt?: boolean; meta?: boolean; key: string }): boolean =>
   i.type === 'keyDown' && !!i.control && !i.alt && !i.meta && i.key.toLowerCase() === 'b'

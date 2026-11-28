@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { kindOf, presetFor } from '../../main/presets'
 import BrandMark from './BrandMark.vue'
 import LogoGlyph from './LogoGlyph.vue'
@@ -7,7 +7,7 @@ import { logoStyle } from './logos'
 import { initials } from './initials'
 import { formatCount } from '../../main/unread'
 import { version } from '../../../package.json'
-import { SIDE_MAX, SIDE_MIN, sideWidth } from '../../main/layout'
+import { nextRow, SIDE_MAX, SIDE_MIN, sideWidth } from '../../main/layout'
 import { sidebarGroups } from '../../main/services'
 
 interface Acc {
@@ -21,6 +21,29 @@ const groups = computed(() => sidebarGroups(props.accounts))
 // Services switched off in Settings (UX-045): their accounts are hidden here, so the footer says how many are off.
 const offCount = computed(() => (props.disabled ?? []).length)
 const offLabel = computed(() => (offCount.value === 1 ? '1 service off' : `${offCount.value} services off`))
+
+// Arrow keys move through the flat sidebar order, across the section headings (UX-001).
+const rowEls = ref<HTMLElement[]>([])
+const flat = computed(() => groups.value.flatMap((g) => g.rows))
+function focusAt(i: number) {
+  const n = flat.value.length
+  if (n > 0) rowEls.value[((i % n) + n) % n]?.focus()
+}
+function onRowKey(e: KeyboardEvent, a: Acc) {
+  const i = flat.value.findIndex((r) => r.id === a.id)
+  let to: number
+  if (e.key === 'ArrowDown') to = nextRow(i, 1, flat.value.length, true)
+  else if (e.key === 'ArrowUp') to = nextRow(i, -1, flat.value.length, true)
+  else if (e.key === 'Home') to = 0
+  else if (e.key === 'End') to = flat.value.length - 1
+  else if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+    e.preventDefault()
+    emit('select', a.id)
+    return
+  } else return
+  e.preventDefault()
+  focusAt(to)
+}
 
 // Drag to reorder (D28): only within a group. The dragged row takes the target's place; the line shows which side it lands on.
 const dragId = ref<string | undefined>()
@@ -88,6 +111,13 @@ onMounted(() => {
     else if (action === 'sleep') emit('sleep', id)
     else if (action === 'account') emit('account', id)
   })
+  // Focus the current account so the list is reachable with Tab and the arrow keys (UX-001).
+  if (props.selectedId) {
+    void nextTick(() => {
+      const i = flat.value.findIndex((r) => r.id === props.selectedId)
+      if (i >= 0) focusAt(i)
+    })
+  }
 })
 onBeforeUnmount(() => offRowMenu?.())
 </script>
@@ -95,25 +125,32 @@ onBeforeUnmount(() => offRowMenu?.())
 <template>
   <aside class="side" :class="{ mini: collapsed }" :style="{ width: (dragW ?? sideWidth(!!collapsed, width)) + 'px' }">
     <div class="brand"><BrandMark :size="collapsed ? 32 : 26" /><span v-if="!collapsed" class="bn">GuiseDesk</span><button class="ib gear" title="Settings" aria-label="Settings" @click="emit('settings')"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg></button><button class="ib add" title="Add account" @click="emit('add')"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg></button></div>
-    <div v-for="g in groups" :key="g.title" class="group">
-      <div class="sec">{{ collapsed ? '' : g.title }}</div>
-      <div
-        v-for="a in g.rows"
-        :key="a.id"
-        class="row"
-        :class="{ on: a.id === selectedId, sleep: asleep?.includes(a.id), 'drop-before': over?.id === a.id && over.at === 'before', 'drop-after': over?.id === a.id && over.at === 'after' }"
-        :title="tip(a)"
-        draggable="true"
-        @dragstart="dragStart($event, a)"
-        @dragover="dragOver($event, a)"
-        @drop.prevent="drop(a)"
-        @dragend="dragEnd"
-        @click="emit('select', a.id)"
-        @contextmenu.prevent="openCtx($event, a)"
-      >
+    <div class="listbox" role="listbox" aria-label="Accounts">
+      <div v-for="g in groups" :key="g.title" class="group">
+        <div class="sec">{{ collapsed ? '' : g.title }}</div>
+        <div
+          v-for="a in g.rows"
+          :key="a.id"
+          ref="rowEls"
+          class="row"
+          role="option"
+          :aria-selected="a.id === selectedId"
+          tabindex="0"
+          :class="{ on: a.id === selectedId, sleep: asleep?.includes(a.id), 'drop-before': over?.id === a.id && over.at === 'before', 'drop-after': over?.id === a.id && over.at === 'after' }"
+          :title="tip(a)"
+          draggable="true"
+          @dragstart="dragStart($event, a)"
+          @dragover="dragOver($event, a)"
+          @drop.prevent="drop(a)"
+          @dragend="dragEnd"
+          @click="emit('select', a.id)"
+          @keydown="onRowKey($event, a)"
+          @contextmenu.prevent="openCtx($event, a)"
+        >
         <span class="av" :style="{ background: a.colour }">{{ initials(a.label) }}<span class="svc" :style="logoStyle(a.serviceId)"><LogoGlyph :service-id="a.serviceId" :icon="a.custom?.icon" /></span></span>
         <span v-if="!collapsed" class="name">{{ a.label }}<small>{{ serviceName(a) }}<template v-if="a.muted"> · muted</template></small></span>
         <span v-if="asleep?.includes(a.id)" class="zz">ZZ</span><span v-else-if="(counts?.[a.id] ?? 0) > 0" class="count" :class="{ muted: a.muted }">{{ formatCount(counts![a.id]) }}</span><span v-else-if="!collapsed" class="slot"></span>
+        </div>
       </div>
     </div>
     <div class="grow"></div>

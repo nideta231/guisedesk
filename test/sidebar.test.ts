@@ -182,6 +182,62 @@ describe('Sidebar', () => {
     })
   })
 
+  describe('keyboard navigation (UX-001)', () => {
+    it('exposes the rows as options in a listbox, each focusable, and marks the selected one', () => {
+      expect(w.find('.listbox').attributes('role')).toBe('listbox')
+      const rows = w.findAll('.row')
+      expect(rows).toHaveLength(7)
+      rows.forEach((r) => {
+        expect(r.attributes('role')).toBe('option')
+        expect(r.attributes('tabindex')).toBe('0')
+      })
+      expect(rows[1].attributes('aria-selected')).toBe('true')
+      expect(rows[0].attributes('aria-selected')).toBe('false')
+    })
+
+    it('ArrowDown moves across Chats into Feeds, Enter selects the focused id, Home and End jump', async () => {
+      const c = mount(Sidebar, { props: { accounts }, attachTo: document.body })
+      const rows = c.findAll('.row')
+      ;(rows[0].element as HTMLElement).focus()
+      await rows[0].trigger('keydown', { key: 'ArrowDown' })
+      expect(document.activeElement).toBe(rows[1].element)
+      await rows[1].trigger('keydown', { key: 'ArrowDown' })
+      expect(document.activeElement).toBe(rows[2].element)
+      await rows[2].trigger('keydown', { key: 'Enter' })
+      expect(c.emitted('select')).toEqual([['ig1']])
+      await rows[2].trigger('keydown', { key: 'End' })
+      expect(document.activeElement).toBe(rows[6].element)
+      await rows[6].trigger('keydown', { key: 'Home' })
+      expect(document.activeElement).toBe(rows[0].element)
+      c.unmount()
+    })
+
+    it('wraps with the arrow keys and focuses the selected row after mount', async () => {
+      const { flushPromises } = await import('@vue/test-utils')
+      const c = mount(Sidebar, { props: { accounts, selectedId: 'dc1' }, attachTo: document.body })
+      await flushPromises()
+      const rows = c.findAll('.row')
+      expect(document.activeElement).toBe(rows[1].element)
+      await rows[1].trigger('keydown', { key: 'ArrowUp' })
+      expect(document.activeElement).toBe(rows[0].element)
+      await rows[0].trigger('keydown', { key: 'ArrowUp' })
+      expect(document.activeElement).toBe(rows[6].element)
+      await rows[6].trigger('keydown', { key: 'ArrowDown' })
+      expect(document.activeElement).toBe(rows[0].element)
+      c.unmount()
+    })
+
+    it('nextRow wraps at both ends and starts at the matching end from none', async () => {
+      const { nextRow } = await import('../src/main/layout')
+      expect(nextRow(6, 1, 7, true)).toBe(0)
+      expect(nextRow(0, -1, 7, true)).toBe(6)
+      expect(nextRow(2, 1, 7, false)).toBe(3)
+      expect(nextRow(-1, 1, 7, true)).toBe(0)
+      expect(nextRow(-1, -1, 7, true)).toBe(6)
+      expect(nextRow(0, 1, 0, true)).toBe(-1)
+    })
+  })
+
   describe('switched-off services cue (UX-045)', () => {
     it('shows a muted footer button naming how many services are off and asks for Settings on Services', async () => {
       const c = mount(Sidebar, { props: { accounts, disabled: ['instagram', 'tiktok'] } })
