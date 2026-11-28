@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AccountSheet from '../src/renderer/src/AccountSheet.vue'
 import App from '../src/renderer/src/App.vue'
 import Settings from '../src/renderer/src/Settings.vue'
+import SettingsExtensions from '../src/renderer/src/SettingsExtensions.vue'
 import SettingsGeneral from '../src/renderer/src/SettingsGeneral.vue'
 import SettingsServices from '../src/renderer/src/SettingsServices.vue'
 import { editAccount, loadAccounts, saveAccounts } from '../src/main/accounts'
@@ -371,6 +372,33 @@ describe('Settings reopens the last tab (UX-006)', () => {
     expect(e.find('.tabs .sel').text()).toBe('Lock')
     expect(b.lastSettingsTab).not.toHaveBeenCalled()
     delete (window as unknown as { guisedesk?: unknown }).guisedesk
+  })
+})
+
+describe('SettingsExtensions remove confirm (UX-043)', () => {
+  const ext = { id: 'ext1', name: 'WA Web Plus', version: '1.0' }
+  const withExt = acc('wa1', 'whatsapp', 'Personal', 0, { extensions: ['ext1'] })
+
+  it('the first Remove asks, Cancel backs out and only the confirm removes once', async () => {
+    const removeExtension = vi.fn(async () => [])
+    ;(window as unknown as { guisedesk: unknown }).guisedesk = { extensions: async () => [ext], removeExtension }
+    const w = mount(SettingsExtensions, { props: { accounts: [withExt] } })
+    await flushPromises()
+    const card = w.find('[data-ext="ext1"]')
+    expect(card.find('.confirm').exists()).toBe(false)
+
+    await card.find('.btn').trigger('click')
+    expect(card.find('.confirm').text()).toContain('Remove WA Web Plus? It will be turned off for every account.')
+    expect(removeExtension).not.toHaveBeenCalled()
+
+    await card.find('.confirm .btn').trigger('click')
+    expect(card.find('.confirm').exists()).toBe(false)
+    expect(removeExtension).not.toHaveBeenCalled()
+
+    await card.find('.btn').trigger('click')
+    await card.find('.confirm .btn.dng').trigger('click')
+    await flushPromises()
+    expect(removeExtension).toHaveBeenCalledExactlyOnceWith('ext1')
   })
 })
 

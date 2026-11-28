@@ -251,6 +251,7 @@ describe('Settings > Extensions', () => {
     expect(setExtension).toHaveBeenCalledWith('wa1', WAWP, true)
     expect(w.find(`[data-ext="${WAWP}"] .tg`).classes()).toContain('on')
     await w.find(`[data-ext="${WAWP}"] .btn`).trigger('click')
+    await w.find(`[data-ext="${WAWP}"] .confirm .btn.dng`).trigger('click')
     await flushPromises()
     expect(w.find(`[data-ext="${WAWP}"]`).exists()).toBe(false)
   })

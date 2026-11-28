@@ -9,6 +9,7 @@ const error = ref('')
 const rows = ref<AccountRow[]>([])
 const updating = ref(false)
 const updateMsg = ref('')
+const confirming = ref<string | undefined>(undefined)
 
 onMounted(async () => {
   list.value = await window.guisedesk.extensions()
@@ -51,6 +52,7 @@ async function add() {
 async function remove(id: string) {
   list.value = await window.guisedesk.removeExtension(id)
   rows.value = rows.value.map((a) => ({ ...a, extensions: a.extensions?.filter((x) => x !== id) }))
+  if (confirming.value === id) confirming.value = undefined
 }
 
 async function toggle(a: AccountRow, id: string) {
@@ -86,7 +88,11 @@ async function toggle(a: AccountRow, id: string) {
         <span class="t"><b>{{ a.label }}</b><span>{{ a.serviceId }}</span></span>
         <button class="tg" :class="{ on: a.extensions?.includes(x.id) }" role="switch" :aria-checked="!!a.extensions?.includes(x.id)" :aria-label="`${x.name} for ${a.label}`" @click="toggle(a, x.id)"></button>
       </div>
-      <div class="sr"><span class="t"><span>Extensions can read and change the pages they run on. Only turn on ones you trust.</span></span><button class="btn" @click="remove(x.id)">Remove</button></div>
+      <div v-if="confirming === x.id" class="confirm">
+        <div class="err">Remove {{ x.name }}? It will be turned off for every account.</div>
+        <div class="btns"><button class="btn" @click="confirming = undefined">Cancel</button><button class="btn dng" @click="remove(x.id)">Remove</button></div>
+      </div>
+      <div v-else class="sr"><span class="t"><span>Extensions can read and change the pages they run on. Only turn on ones you trust.</span></span><button class="btn" @click="confirming = x.id">Remove</button></div>
     </div>
     <div v-if="!list.length" class="card"><div class="sr"><span class="t"><span>No extensions yet.</span></span></div></div>
   </div>
