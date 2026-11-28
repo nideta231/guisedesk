@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { presetFor } from '../../main/presets'
-import { filterInbox, groupInbox, unreadCount } from '../../main/inbox'
+import { filterInbox, groupInbox, searchInbox, unreadCount } from '../../main/inbox'
 import { initials } from './initials'
 
 const props = defineProps<{ items: InboxItem[]; accounts: AccountRow[] }>()
 const emit = defineEmits<{ close: []; select: [accountId: string, itemId: string]; 'read-all': []; clear: [] }>()
 
 const filter = ref('')
+const search = ref('')
 const veil = ref<HTMLElement>()
 onMounted(() => veil.value?.focus())
 
 const byId = computed(() => new Map(props.accounts.map((a) => [a.id, a])))
-const filtered = computed(() => filterInbox(props.items, filter.value || undefined))
+const labels = computed(() => Object.fromEntries(props.accounts.map((a) => [a.id, a.label])))
+const filtered = computed(() => searchInbox(filterInbox(props.items, filter.value || undefined), search.value, labels.value))
 const groups = computed(() => groupInbox(filtered.value))
 const unread = computed(() => unreadCount(props.items, props.accounts.filter((a) => a.muted).map((a) => a.id)))
 // The filter lists accounts that actually have items, in the sidebar order.
@@ -37,6 +39,7 @@ const timeText = (time: number) => new Date(time).toLocaleTimeString([], { hour:
           <option value="">All accounts</option>
           <option v-for="a in choices" :key="a.id" :value="a.id">{{ a.label }} · {{ serviceOf(a.id) }}</option>
         </select>
+        <input v-model="search" class="inp search" type="search" placeholder="Search notifications" aria-label="Search notifications" />
         <button class="btn" :disabled="!unread" @click="emit('read-all')">Mark all read</button>
         <button class="btn" :disabled="!items.length" @click="emit('clear')">Clear</button>
       </div>
@@ -59,7 +62,7 @@ const timeText = (time: number) => new Date(time).toLocaleTimeString([], { hour:
             </span>
           </button>
         </template>
-        <div v-if="!groups.length" class="hint none">{{ filter ? 'No notifications for this account.' : 'No notifications yet.' }}</div>
+        <div v-if="!groups.length" class="hint none">{{ search.trim() ? 'No notifications match.' : filter ? 'No notifications for this account.' : 'No notifications yet.' }}</div>
       </div>
     </div>
   </div>
@@ -68,7 +71,7 @@ const timeText = (time: number) => new Date(time).toLocaleTimeString([], { hour:
 <style scoped>
 .inbox { width: 560px; }
 .bar { display: flex; align-items: center; gap: 8px; margin: 10px 0 6px; }
-.filter { flex: 1; min-width: 0; margin: 0; height: 32px; padding: 0 10px; font-size: 12.5px; }
+.filter, .search { flex: 1; min-width: 0; margin: 0; height: 32px; padding: 0 10px; font-size: 12.5px; }
 .bar .btn { height: 32px; padding: 0 10px; font-size: 12px; white-space: nowrap; }
 .bar .btn:disabled { opacity: 0.4; cursor: default; }
 .list { max-height: 360px; overflow-y: auto; margin-top: 4px; }

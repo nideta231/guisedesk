@@ -11,6 +11,7 @@ import {
   markRead,
   MAX_INBOX,
   normalizeInbox,
+  searchInbox,
   unreadCount,
   type InboxItem
 } from '../src/main/inbox'
@@ -63,6 +64,20 @@ describe('notification inbox (D64)', () => {
     expect(unreadCount(items, ['a1'])).toBe(1)
     expect(filterInbox(items, 'a1')).toHaveLength(2)
     expect(filterInbox(items)).toHaveLength(3)
+  })
+
+  it('searches title, body and account label with ANDed case-insensitive tokens', () => {
+    const items = [
+      item('a', 3, { title: 'Alice', body: 'Lunch at 12?' }),
+      item('b', 2, { accountId: 'a2', title: 'Ben', body: 'Standup' }),
+      item('c', 1, { title: 'Old', body: 'Hello', read: true })
+    ]
+    expect(searchInbox(items, 'lunch').map((i) => i.id)).toEqual(['a'])
+    expect(searchInbox(items, 'LUNCH Alice').map((i) => i.id)).toEqual(['a'])
+    expect(searchInbox(items, 'lunch ben')).toEqual([])
+    expect(searchInbox(items, 'Work', { a2: 'Work' }).map((i) => i.id)).toEqual(['b'])
+    expect(searchInbox(items, '')).toBe(items)
+    expect(searchInbox(items, '   ')).toBe(items)
   })
 
   it('drops malformed rows and accepts the stored { v, items } shape', () => {

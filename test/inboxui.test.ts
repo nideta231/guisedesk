@@ -41,6 +41,21 @@ describe('Inbox dialog (D64)', () => {
     expect(empty.find('.none').text()).toBe('No notifications yet.')
   })
 
+  it('searches the text, keeps the day groups and shows a plain no-match state', async () => {
+    const w = mount(Inbox, { props: { items, accounts } })
+    await w.find('input.search').setValue('lunch')
+    expect(w.findAll('.item')).toHaveLength(1)
+    expect(w.find('.item').text()).toContain('Lunch at 12?')
+    expect(w.find('.day').text()).toBe('Today')
+    await w.find('input.search').setValue('ALICE lunch')
+    expect(w.findAll('.item')).toHaveLength(1)
+    await w.find('input.search').setValue('work')
+    expect(w.findAll('.item')).toHaveLength(1)
+    expect(w.find('.item').text()).toContain('Ben')
+    await w.find('input.search').setValue('zzz')
+    expect(w.find('.none').text()).toBe('No notifications match.')
+  })
+
   it('clicking an item asks to select that account; the buttons emit read-all and clear', async () => {
     const w = mount(Inbox, { props: { items, accounts } })
     await w.findAll('.item')[1].trigger('click')

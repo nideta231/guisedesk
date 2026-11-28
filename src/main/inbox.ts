@@ -58,6 +58,16 @@ export function filterInbox(items: InboxItem[], accountId?: string): InboxItem[]
   return accountId ? items.filter((i) => i.accountId === accountId) : items
 }
 
+/** Text search (UX-020): every whitespace token must appear in the title, body or account label, case-insensitively. */
+export function searchInbox(items: InboxItem[], query: string, labels: Record<string, string> = {}): InboxItem[] {
+  const tokens = String(query ?? '').toLowerCase().split(/\s+/).filter(Boolean)
+  if (!tokens.length) return items
+  return items.filter((i) => {
+    const text = `${i.title} ${i.body} ${labels[i.accountId] ?? ''}`.toLowerCase()
+    return tokens.every((t) => text.includes(t))
+  })
+}
+
 function validItem(v: unknown): v is InboxItem {
   if (!v || typeof v !== 'object') return false
   const i = v as Partial<InboxItem>
