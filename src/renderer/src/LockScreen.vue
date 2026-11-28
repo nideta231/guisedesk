@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { capsLockOn } from '../../main/capslock'
 import BrandMark from './BrandMark.vue'
 
 const props = defineProps<{ kind: 'pin' | 'password'; pinLength?: number; waitUntil?: number }>()
@@ -14,6 +15,8 @@ const waiting = computed(() => until.value > now.value)
 const secs = computed(() => Math.max(1, Math.ceil((until.value - now.value) / 1000)))
 const length = computed(() => props.pinLength ?? 6)
 const errorText = ref('')
+// Caps Lock (UX-029): the most common cause of a "wrong password"; only the password field needs the hint.
+const capsLock = ref(false)
 let timer: ReturnType<typeof setInterval> | undefined
 let errorTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -50,7 +53,10 @@ async function submit() {
   busy.value = true
   try {
     const r = await window.guisedesk.unlock(value)
-    if (r.result === 'ok') return
+    if (r.result === 'ok') {
+      capsLock.value = false
+      return
+    }
     entry.value = ''
     shake.value = true
     setTimeout(() => (shake.value = false), 400)
@@ -86,6 +92,11 @@ function onKey(e: KeyboardEvent) {
   else if (e.key === 'Enter') void submit()
 }
 
+function onCaps(e: KeyboardEvent) {
+  if (props.kind !== 'password') return
+  capsLock.value = capsLockOn(e)
+}
+
 onMounted(() => {
   window.addEventListener('keydown', onKey)
   startTimer()
@@ -112,8 +123,9 @@ onBeforeUnmount(() => {
         </div>
       </template>
       <div v-else class="pw">
-        <input v-model="entry" class="inp" type="password" autofocus placeholder="Password" :disabled="waiting" aria-label="Password" @input="clearError" @keydown.enter="submit" />
+        <input v-model="entry" class="inp" type="password" autofocus placeholder="Password" :disabled="waiting" aria-label="Password" @input="clearError" @keydown="onCaps" @keyup="onCaps" @keydown.enter="submit" />
         <div class="pwbtns"><button class="btn" @click="emit('forgot')">Forgot</button><button class="btn pri" :disabled="waiting" @click="submit">Unlock</button></div>
+        <div v-if="capsLock" class="caps" role="status">Caps Lock is on</div>
       </div>
       <div v-if="errorText && !waiting" class="wrong" role="alert">{{ errorText }}</div>
       <div v-if="waiting" class="wait" role="status">Too many tries. Try again in {{ secs }} s</div>

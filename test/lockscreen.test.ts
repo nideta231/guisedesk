@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { capsLockOn } from '../src/main/capslock'
 import App from '../src/renderer/src/App.vue'
 import LockScreen from '../src/renderer/src/LockScreen.vue'
 import ResetScreen from '../src/renderer/src/ResetScreen.vue'
@@ -126,6 +127,52 @@ describe('LockScreen (password)', () => {
     await w.find('input[type=password]').trigger('keydown', { key: 'Enter' })
     await flushPromises()
     expect(b.unlock).toHaveBeenCalledExactlyOnceWith('hunter2hunter2')
+  })
+})
+
+describe('Caps Lock hint (UX-029)', () => {
+  it('capsLockOn reads getModifierState and treats a missing method as off', () => {
+    expect(capsLockOn({ getModifierState: (k: string) => k === 'CapsLock' })).toBe(true)
+    expect(capsLockOn({ getModifierState: () => false })).toBe(false)
+    expect(capsLockOn({})).toBe(false)
+  })
+
+  it('the password field shows the hint on a Caps Lock keydown and hides it on a keyup with it off', async () => {
+    install()
+    const w = mount(LockScreen, { props: { kind: 'password' } })
+    const field = w.find('input[type=password]')
+    const withCaps = (type: string, on: boolean) => {
+      const e = new KeyboardEvent(type, { key: 'a', bubbles: true })
+      Object.defineProperty(e, 'getModifierState', { value: (k: string) => on && k === 'CapsLock' })
+      field.element.dispatchEvent(e)
+    }
+    withCaps('keydown', true)
+    await w.vm.$nextTick()
+    expect(w.find('.caps').text()).toBe('Caps Lock is on')
+    withCaps('keyup', false)
+    await w.vm.$nextTick()
+    expect(w.find('.caps').exists()).toBe(false)
+    w.unmount()
+  })
+
+  it('hides the hint after a successful unlock and never shows it on the PIN pad', async () => {
+    install({ unlock: vi.fn(async () => ({ result: 'ok' })) })
+    const w = mount(LockScreen, { props: { kind: 'password' } })
+    const field = w.find('input[type=password]')
+    const caps = new KeyboardEvent('keydown', { key: 'a', bubbles: true })
+    Object.defineProperty(caps, 'getModifierState', { value: (k: string) => k === 'CapsLock' })
+    field.element.dispatchEvent(caps)
+    await w.vm.$nextTick()
+    expect(w.find('.caps').exists()).toBe(true)
+    await field.setValue('hunter2hunter2')
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
+    Object.defineProperty(enter, 'getModifierState', { value: (k: string) => k === 'CapsLock' })
+    field.element.dispatchEvent(enter)
+    await flushPromises()
+    expect(w.find('.caps').exists()).toBe(false)
+    const pin = mount(LockScreen, { props: { kind: 'pin', pinLength: 6 } })
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: '1' }))
+    expect(pin.find('.caps').exists()).toBe(false)
   })
 })
 
