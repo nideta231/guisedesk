@@ -148,6 +148,24 @@ describe('startKeeper', () => {
     k?.stop()
   })
 
+  it('does not scan the chat on mutations until something was deleted, then it does', async () => {
+    document.body.innerHTML = '<div id="main"></div>'
+    const coll = new FakeColl(), store = memStore()
+    await start(coll, store)
+    const qsa = vi.spyOn(document, 'querySelectorAll')
+    document.getElementById('main')!.appendChild(document.createElement('div'))
+    await settle()
+    expect(qsa).not.toHaveBeenCalled()
+    const m = model()
+    coll.add(m)
+    document.getElementById('main')!.insertAdjacentHTML('beforeend', '<div data-id="false_111@c.us_3EB01"><span>x</span></div>')
+    await settle()
+    qsa.mockClear()
+    coll.setType(m, 'revoked')
+    await settle()
+    expect(qsa).toHaveBeenCalled()
+  })
+
   it('store not found: one warning, state unavailable, nothing thrown', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const states: string[] = []

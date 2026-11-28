@@ -201,6 +201,11 @@ export async function startKeeper(d: KeeperDeps): Promise<{ stop: () => void } |
     }
     if (!coll) return fail('Msg collection not found')
     const cache = new Map<string, Entry>()
+    let revokedCount = 0
+    const countRevoked = () => {
+      revokedCount = 0
+      for (const e of cache.values()) if (e.revoked) revokedCount++
+    }
     const cleanup = async () => {
       const all = await d.store.all()
       const keep = prune(all, d.now())
@@ -209,9 +214,11 @@ export async function startKeeper(d: KeeperDeps): Promise<{ stop: () => void } |
       if (drop.length) await d.store.remove(drop)
       for (const id of drop) cache.delete(id)
       for (const e of keep) if (!cache.has(e.id)) cache.set(e.id, e)
+      countRevoked()
     }
     await cleanup()
     const renderAll = () => {
+      if (!revokedCount) return
       const rows: Element[] = Array.prototype.filter.call(d.doc.querySelectorAll('[data-id]'), (r: Element) => !r.querySelector('.gd-deleted'))
       if (!rows.length) return
       for (const e of cache.values()) if (e.revoked) renderDeleted(d.doc, e, rows)
@@ -223,6 +230,7 @@ export async function startKeeper(d: KeeperDeps): Promise<{ stop: () => void } |
         if (isRevoked(m)) {
           if (have && !have.revoked) {
             have.revoked = d.now()
+            revokedCount++
             void d.store.put(have).catch(() => {})
           }
           if (have) renderAll()
@@ -241,10 +249,12 @@ export async function startKeeper(d: KeeperDeps): Promise<{ stop: () => void } |
     let pending: ReturnType<typeof setTimeout> | null = null
     const view = d.doc.defaultView
     const obs = view && new view.MutationObserver(() => {
-      if (pending) return
+      if (!revokedCount || pending) return
       pending = setTimeout(() => { pending = null; renderAll() }, 50)
     })
-    if (obs) obs.observe(d.doc.documentElement, { childList: true, subtree: true })
+    // WhatsApp mutates the chat constantly; only new rows there can need a deleted-message block.
+    const chat = d.doc.querySelector('#main') ?? d.doc.documentElement
+    if (obs) obs.observe(chat, { childList: true, subtree: true })
     renderAll()
     const timer = setInterval(() => void cleanup().catch(() => {}), 3_600_000)
     d.onState('ok')
