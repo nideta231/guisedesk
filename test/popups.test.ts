@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createPopups, openTarget } from '../src/main/popups'
+import { closePartitionPopups } from '../src/main/sharing'
 
 describe('openTarget', () => {
   const table: [string, 'in-app' | 'external' | 'deny', string][] = [
@@ -18,6 +19,15 @@ describe('openTarget', () => {
   ]
   it.each(table)('%s + %s -> %s', (disposition, action, want) => {
     expect(openTarget(disposition, action)).toBe(want)
+  })
+})
+
+describe('closePartitionPopups', () => {
+  it('closes the host and every account sharing its login, once each, and no other account', () => {
+    const closeFor = vi.fn()
+    const accounts = [{ id: 'host' }, { id: 'sharer', shareWith: 'host' }, { id: 'other' }]
+    closePartitionPopups(accounts[0], accounts, closeFor)
+    expect(closeFor.mock.calls.map((c) => c[0])).toEqual(['host', 'sharer'])
   })
 })
 

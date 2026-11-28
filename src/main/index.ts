@@ -45,7 +45,7 @@ import { doneNotice, downloadOutcome, loadDownloads, saveDownloads, uniquePath }
 import { isHelpShortcut, isSwitcherShortcut, nextZoom, switchTarget, zoomKey, type KeyInput } from './shortcuts'
 import { sidebarOrder } from './services'
 import { PARTS, partsOn, type Part } from '../preload/blur'
-import { onPartition, partitionKey, partitionOf } from './sharing'
+import { closePartitionPopups, onPartition, partitionKey, partitionOf } from './sharing'
 import { effectiveProxy, findProxyCredential, parseProxy, proxyLabel, proxyMenu, proxyRules, sameProxy, proxyHostOf } from './proxy'
 import { secondLaunch } from './singleinstance'
 import { clampSide, clampSplit, isSidebarShortcut, panelBounds as layoutBounds, splitBounds } from './layout'
@@ -1555,10 +1555,12 @@ function createWindow(): BrowserWindow {
     return snapshot()
   })
   gipc.handle('accounts:remove', async (_e: unknown, id: string) => {
-    if (!accounts.some((a) => a.id === id)) return snapshot()
+    const target = accounts.find((a) => a.id === id)
+    if (!target) return snapshot()
     if (id === splitB) endSplit()
-    popups.closeFor(id)
-    const removedKey = accounts.find((a) => a.id === id) ? partitionKey(accounts.find((a) => a.id === id)!) : undefined
+    // The partition's storage is wiped below, so every popup from that shared login goes first.
+    closePartitionPopups(target, accounts, (x) => popups.closeFor(x))
+    const removedKey = partitionKey(target)
     try {
       appendEvent(dir, `remove account ${id} (from the app)`)
       await removeAccount(dir, id, {

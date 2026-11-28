@@ -31,3 +31,12 @@ export function defaultShare(serviceId: string, accounts: Shareable[]): string |
 /** Every account whose session is this account's partition (itself included). */
 export const onPartition = <T extends { id: string; shareWith?: string }>(a: { id: string; shareWith?: string }, accounts: T[]): T[] =>
   accounts.filter((x) => partitionKey(x) === partitionKey(a))
+
+/** Closes the popups of the host and every account sharing its login, so none stays over wiped storage. */
+export function closePartitionPopups<T extends { id: string; shareWith?: string }>(
+  a: { id: string; shareWith?: string },
+  accounts: T[],
+  closeFor: (id: string) => void
+): void {
+  for (const x of onPartition(a, accounts)) closeFor(x.id)
+}
