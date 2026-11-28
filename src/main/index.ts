@@ -1244,9 +1244,9 @@ function createWindow(): BrowserWindow {
           ses.flushStorageData()
         }
       }
-      const made = await runBackupWorker({ op: 'export', dataDir: dir, includeLogins, password, version })
-      if (!made.bytes) return { error: 'The backup could not be created.' }
-      writeAtomic(file, made.bytes, undefined, 0o600)
+      // The worker writes the file itself: the encrypted bytes never cross the thread boundary twice.
+      const made = await runBackupWorker({ op: 'export', dataDir: dir, file, includeLogins, password, version })
+      if (!made.manifest) return { error: 'The backup could not be created.' }
       appendEvent(dir, `backup exported ${basename(file)}${includeLogins ? ' with logins' : ''}`)
       return { ok: true, file, manifest: made.manifest }
     } catch (err) {

@@ -4,7 +4,6 @@ import type { BackupWorkerRequest } from './backupbuild'
 import type { BackupManifest } from './backup'
 
 export interface BackupWorkerResult {
-  bytes?: Buffer
   manifest?: BackupManifest
 }
 
@@ -15,14 +14,11 @@ export function runBackupWorker(req: BackupWorkerRequest): Promise<BackupWorkerR
       void w.terminate()
       reject(new Error('The backup took too long.'))
     }, 10 * 60_000)
-    w.once('message', (m: { ok: boolean; bytes?: Uint8Array; manifest?: BackupManifest; error?: string }) => {
+    w.once('message', (m: { ok: boolean; manifest?: BackupManifest; error?: string }) => {
       clearTimeout(t)
       void w.terminate()
       if (!m.ok) return reject(new Error(m.error ?? 'The backup failed.'))
-      resolve({
-        ...(m.bytes ? { bytes: Buffer.from(m.bytes) } : {}),
-        ...(m.manifest ? { manifest: m.manifest } : {})
-      })
+      resolve({ ...(m.manifest ? { manifest: m.manifest } : {}) })
     })
     w.once('error', (e: Error) => {
       clearTimeout(t)

@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { deflateSync, inflateSync } from 'node:zlib'
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { allowedRestorePath, applyPendingRestore, buildBackupArchive, decryptBackup, encryptBackup, inspectBackupBytes, PENDING_ARCHIVE, PENDING_MARKER, packArchive, prepareRestore, readArchiveManifest, unpackArchive } from '../src/main/backup'
+import { allowedRestorePath, applyPendingRestore, buildBackupArchive, decryptBackup, encryptBackup, inspectBackupBytes, PENDING_ARCHIVE, PENDING_MARKER, packArchive, prepareRestore, readArchiveManifest, unpackArchive, writeBackup } from '../src/main/backup'
+import { handleBackupRequest } from '../src/main/backupjob'
 import { backupDate, backupFileName, passwordProblem } from '../src/main/backuprules'
 import BackupDialog from '../src/renderer/src/BackupDialog.vue'
 import SettingsGeneral from '../src/renderer/src/SettingsGeneral.vue'
@@ -223,6 +224,39 @@ describe('backup manifest and restore (D61)', () => {
     expect(existsSync(join(target, PENDING_MARKER))).toBe(false)
     expect(existsSync(join(target, PENDING_ARCHIVE))).toBe(false)
     expect(existsSync(join(target, '..', 'evil.txt'))).toBe(false)
+  })
+})
+
+describe('backup writing (PF-015)', () => {
+  it('writeBackup writes once with mode 0600 and returns the manifest', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gd-backup-write-'))
+    seed(dir)
+    const file = join(dir, 'written.gdbackup')
+    const writes: { path: string; mode?: number }[] = []
+    const fs = {
+      writeFileSync: (path: string, _data: string | Uint8Array, options?: { mode?: number }) => { writes.push({ path, mode: options?.mode }) },
+      renameSync: () => {},
+      chmodSync: () => {},
+      unlinkSync: () => {}
+    }
+    const made = writeBackup(file, { dataDir: dir, includeLogins: false, password: PW, version: '0.1.19', params: PARAMS }, fs)
+    expect(made.accounts).toBe(2)
+    expect(writes.length).toBe(1)
+    expect(writes[0].mode).toBe(0o600)
+    expect(existsSync(file)).toBe(false)
+  })
+
+  it('the export worker request writes the file itself and replies without bytes', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gd-backup-job-'))
+    seed(dir)
+    const file = join(dir, 'worker.gdbackup')
+    const r = handleBackupRequest({ op: 'export', dataDir: dir, file, includeLogins: false, password: PW, version: '0.1.19' })
+    expect(r.ok).toBe(true)
+    expect('bytes' in r).toBe(false)
+    expect(r.manifest?.accounts).toBe(2)
+    expect(existsSync(file)).toBe(true)
+    expect(statSync(file).mode & 0o777).toBe(0o600)
+    expect(inspectBackupBytes(PW, readFileSync(file))).toMatchObject({ accounts: 2, includeLogins: false })
   })
 })
 

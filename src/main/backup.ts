@@ -6,7 +6,7 @@ import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { dirname, join, relative, sep } from 'node:path'
 import { deflateSync, inflateSync } from 'node:zlib'
-import { writeAtomic } from './atomic'
+import { writeAtomic, type Fs } from './atomic'
 import { extensionsDir, listInstalled } from './extensions'
 import { MIN_BACKUP_PASSWORD, passwordProblem } from './backuprules'
 
@@ -251,6 +251,14 @@ export function buildBackupArchive(input: BackupInput): { bytes: Buffer; manifes
   entries.push({ path: 'manifest.json', data: Buffer.from(JSON.stringify(manifest, null, 2)) })
   // The archive is deflated before encryption: partition folders compress well, and the result stays one file.
   return { bytes: encryptBackup(input.password, deflateSync(packArchive(entries)), input.params), manifest }
+}
+
+/** Builds the archive and writes it in the worker, so the encrypted bytes never cross the thread boundary. */
+export function writeBackup(file: string, input: BackupInput, fs?: Fs): BackupManifest {
+  const { bytes, manifest } = buildBackupArchive(input)
+  mkdirSync(dirname(file), { recursive: true })
+  writeAtomic(file, bytes, fs, 0o600)
+  return manifest
 }
 
 /** The manifest stored inside an unpacked archive; malformed or foreign archives are rejected. */
