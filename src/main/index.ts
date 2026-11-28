@@ -54,6 +54,7 @@ import { backupFileName } from './backuprules'
 import { runBackupWorker } from './backupengine'
 import { addInbox, inboxItem, markAllRead, markRead, unreadCount, type InboxItem } from './inbox'
 import { loadInbox, saveInbox } from './inboxstore'
+import { flushSessions, sessionKeys } from './sessionlife'
 
 // Both must run before `ready`. setName first: it resets the default userData path, which setPath then overrides,
 // so sessions and partitions still land in the chosen dir. The name is what notifications and the tray show.
@@ -122,6 +123,8 @@ let counts: Record<string, number> = {}
 const fakeCounts = process.env.GUISEDESK_FAKE_COUNTS
 let onCounts: () => void = () => {}
 let quitting = false
+// The quit waits once for the session flush; the second before-quit lets the app go.
+let quitFlushed = false
 // Global Do Not Disturb (D19), loaded from settings in createWindow.
 let dnd = false
 // Quiet outside work hours (D58): notifications are dropped outside the lock schedule's days/hours. Separate from dnd.
@@ -2124,15 +2127,17 @@ async function checkLogins(): Promise<void> {
     appendEvent(dir, `login check failed ${String(err)}`)
   }
 }
-app.on('before-quit', () => {
+app.on('before-quit', (event) => {
   quitting = true
+  if (quitFlushed) return
+  event.preventDefault()
   appendEvent(dir, 'quit')
-  // Write cookies and storage to disk before exit, so a quit or update right after a login keeps it.
-  for (const v of views.values()) {
-    if (v.webContents.isDestroyed()) continue
-    void v.webContents.session.cookies.flushStore().catch(() => {})
-    v.webContents.session.flushStorageData()
-  }
+  // Write cookies and storage to disk before exit, including accounts that are asleep and have no view, so a
+  // login or IndexedDB write from the last seconds before quit is kept. The 2 s cap keeps a stuck disk from hanging quit.
+  void flushSessions(sessionKeys(loadAccounts(dir)), (key) => session.fromPartition(`persist:${key}`), 2000).then(() => {
+    quitFlushed = true
+    app.quit()
+  })
 })
 // Session end (logout/shutdown) and kill: same flush, then exit.
 for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP'] as const) process.on(sig, () => {
