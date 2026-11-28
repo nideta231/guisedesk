@@ -46,6 +46,17 @@ describe('block state', () => {
   })
 })
 
+describe('reset clears block state', () => {
+  it('drops every account count, host and dropped pop-up', () => {
+    const s = createBlockState(() => {})
+    s.blocked('a', 'https://ads.example/x')
+    s.popup('a', 'https://shop.example/pay?token=1')
+    expect(s.snapshot().a.blocked).toBe(1)
+    s.clear()
+    expect(s.snapshot()).toEqual({})
+  })
+})
+
 describe('shield menu', () => {
   it('clicking the shield emits shield', async () => {
     const w = mount(TopBar, { props: { account: wa, asleep: false, adsOn: true, blocked: 3 } })

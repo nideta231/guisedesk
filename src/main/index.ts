@@ -1392,6 +1392,7 @@ function createWindow(): BrowserWindow {
     saveInbox(dir, inbox)
     for (const k of Object.keys(counts)) delete counts[k]
     for (const k of Object.keys(sleepState)) delete sleepState[k]
+    blockState.clear()
     lock.reset()
     return r
   })
