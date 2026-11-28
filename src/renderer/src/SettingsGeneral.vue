@@ -57,6 +57,14 @@ async function toggle() {
   if (await window.guisedesk.setStartOnLogin(next)) on.value = next
 }
 
+// About and data (UX-007): the folder main writes to, and its event log for troubleshooting.
+function openData() {
+  void window.guisedesk.openDataFolder()
+}
+function showLog() {
+  void window.guisedesk.showEventLog()
+}
+
 const backupMode = ref<'export' | 'restore' | undefined>()
 </script>
 
@@ -96,6 +104,17 @@ const backupMode = ref<'export' | 'restore' | undefined>()
       <div class="sr">
         <span class="t"><b>Keyboard shortcuts</b><span>See every shortcut the app has.</span></span>
         <button class="lnk" @click="emit('shortcuts')">Show shortcuts</button>
+      </div>
+    </div>
+    <div class="card">
+      <h4>About and data</h4>
+      <div class="sr">
+        <span class="t"><b>Data folder</b><span>Sessions, settings and logs live here.</span></span>
+        <button class="btn" @click="openData">Open data folder</button>
+      </div>
+      <div class="sr">
+        <span class="t"><b>Event log</b><span>Recent app events, for troubleshooting.</span></span>
+        <button class="btn" @click="showLog">Show event log</button>
       </div>
     </div>
     <div class="card">

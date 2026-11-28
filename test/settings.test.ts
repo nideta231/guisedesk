@@ -9,6 +9,7 @@ import App from '../src/renderer/src/App.vue'
 import Settings from '../src/renderer/src/Settings.vue'
 import SettingsServices from '../src/renderer/src/SettingsServices.vue'
 import { editAccount, loadAccounts, saveAccounts } from '../src/main/accounts'
+import { openAppTarget } from '../src/main/appopen'
 
 const acc = (id: string, serviceId: string, label: string, order: number, extra = {}) => ({ id, serviceId, label, colour: '#6d5bd0', order, ...extra })
 const accounts = [
@@ -122,6 +123,11 @@ describe('Settings in the app', () => {
       dialog: vi.fn(),
       mute: vi.fn(async () => snap([])),
       setServiceEnabled: vi.fn(async (_id: string, on: boolean) => snap(on ? [] : ['whatsapp'])),
+      prefs: vi.fn(async () => ({ startOnLogin: false })),
+      downloads: vi.fn(async () => ({ dir: '/tmp', ask: false })),
+      blocking: vi.fn(async () => ({ ads: false, popups: true })),
+      openDataFolder: vi.fn(async () => true),
+      showEventLog: vi.fn(async () => true),
       setPolicy: vi.fn(async () => snap([])),
       edit: vi.fn(async (v: { id: string; label: string; colour: string }) => ({
         accounts: accounts.map((a) => (a.id === v.id ? { ...a, label: v.label, colour: v.colour } : a)),
@@ -202,6 +208,22 @@ describe('Settings in the app', () => {
     expect(bridge.remove).toHaveBeenCalledWith('wa1')
     expect(w.find('.glass').exists()).toBe(false)
     expect(w.find('aside').text()).not.toContain('Personal')
+  })
+
+  it('General has an About and data card whose buttons call their bridge methods', async () => {
+    const w = await open()
+    await w.findAll('.tabs button').find((t) => t.text() === 'General')!.trigger('click')
+    await flushPromises()
+    const card = w.findAll('.card').find((c) => c.find('h4').text() === 'About and data')!
+    expect(card.exists()).toBe(true)
+    const buttons = card.findAll('.btn')
+    expect(buttons.map((b) => b.text())).toEqual(['Open data folder', 'Show event log'])
+    await buttons[0].trigger('click')
+    await buttons[1].trigger('click')
+    const openData = bridge.openDataFolder as ReturnType<typeof vi.fn>
+    const showLog = bridge.showEventLog as ReturnType<typeof vi.fn>
+    expect(openData).toHaveBeenCalledOnce()
+    expect(showLog).toHaveBeenCalledOnce()
   })
 
   it('a sidebar context item opens the sheet', async () => {
@@ -311,5 +333,43 @@ describe('Settings tabs from the keyboard (UX-005)', () => {
     await tabs(w).find((t) => t.text() === 'Extensions')!.trigger('click')
     expect(selected(w)).toBe(3)
     expect(w.findComponent({ name: 'SettingsExtensions' }).exists()).toBe(true)
+  })
+})
+
+describe('app:open handler (UX-007)', () => {
+  const io = (exists = true) => ({
+    dir: '/data',
+    logPath: '/data/events.log',
+    exists: () => exists,
+    openPath: vi.fn(async () => ''),
+    showItemInFolder: vi.fn()
+  })
+
+  it('refuses a non-app sender and an unknown target', async () => {
+    const a = io()
+    expect(await openAppTarget('data', false, a)).toBe(false)
+    expect(a.openPath).not.toHaveBeenCalled()
+    expect(await openAppTarget('nope', true, a)).toBe(false)
+    expect(a.showItemInFolder).not.toHaveBeenCalled()
+  })
+
+  it('opens the data folder, and shows the log only when the file exists', async () => {
+    const a = io()
+    expect(await openAppTarget('data', true, a)).toBe(true)
+    expect(a.openPath).toHaveBeenCalledWith('/data')
+
+    const missing = io(false)
+    expect(await openAppTarget('log', true, missing)).toBe(false)
+    expect(missing.showItemInFolder).not.toHaveBeenCalled()
+
+    const found = io(true)
+    expect(await openAppTarget('log', true, found)).toBe(true)
+    expect(found.showItemInFolder).toHaveBeenCalledWith('/data/events.log')
+  })
+
+  it('reports a failed folder open', async () => {
+    const a = io()
+    a.openPath = vi.fn(async () => 'Permission denied')
+    expect(await openAppTarget('data', true, a)).toBe(false)
   })
 })

@@ -15,7 +15,7 @@ describe('Settings > General Downloads card', () => {
     const w = mount(SettingsGeneral, { props: { update: { state: 'none' } } })
     await flushPromises()
     const titles = w.findAll('.card h4').map((h) => h.text())
-    expect(titles).toEqual(['Startup', 'Downloads', 'Blocking', 'Keyboard', 'Backup', 'Updates'])
+    expect(titles).toEqual(['Startup', 'Downloads', 'Blocking', 'Keyboard', 'About and data', 'Backup', 'Updates'])
     const card = w.findAll('.card')[1]
     expect(card.find('.path').text()).toBe('/home/x/Downloads')
     const sw = card.find('.tg')

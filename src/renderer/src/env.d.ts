@@ -258,6 +258,9 @@ interface Window {
     pickBackup(): Promise<{ file: string } | { canceled: true }>
     inspectBackup(v: { file: string; password: string }): Promise<{ manifest: BackupManifest } | { error: string }>
     restoreBackup(v: { file: string; password: string }): Promise<{ ok: true; manifest: BackupManifest } | { error: string }>
+    /** Settings > General "About and data" (UX-007): open the data folder or show events.log. */
+    openDataFolder(): Promise<boolean>
+    showEventLog(): Promise<boolean>
     /** Downloads (D31): the folder in use (the system Downloads dir by default) and the ask switch; pick opens a folder picker and saves it. */
     downloads(): Promise<{ dir: string; ask: boolean }>
     setDownloadsAsk(ask: boolean): Promise<boolean>

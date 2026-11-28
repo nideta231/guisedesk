@@ -202,6 +202,8 @@ if (service) {
   pickBackup: () => ipcRenderer.invoke('backup:pick'),
   inspectBackup: (v: { file: string; password: string }) => ipcRenderer.invoke('backup:inspect', v),
   restoreBackup: (v: { file: string; password: string }) => ipcRenderer.invoke('backup:restore', v),
+  openDataFolder: () => ipcRenderer.invoke('app:open', 'data'),
+  showEventLog: () => ipcRenderer.invoke('app:open', 'log'),
   downloads: () => ipcRenderer.invoke('downloads:get'),
   setDownloadsAsk: (ask: boolean) => ipcRenderer.invoke('downloads:set', { ask }),
   pickDownloadsDir: () => ipcRenderer.invoke('downloads:pick'),

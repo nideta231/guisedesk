@@ -59,6 +59,7 @@ import { collectLogins, createLoginScheduler } from './logincheck'
 import { onceMainFrameSettled } from './mainframe'
 import { isReportableLoadError } from './pageerror'
 import { goBack, goForward, navState } from './nav'
+import { openAppTarget } from './appopen'
 import { watchViewHealth } from './viewhealth'
 
 // Both must run before `ready`. setName first: it resets the default userData path, which setPath then overrides,
@@ -1222,6 +1223,16 @@ function createWindow(): BrowserWindow {
     app.quit()
     return true
   })
+  // Settings > General "About and data" (UX-007): open the data folder or show events.log, only for the app window.
+  gipc.handle('app:open', (e: { sender: { id: number } }, target: unknown) =>
+    openAppTarget(target, fromApp(e), {
+      dir,
+      logPath: join(dir, 'events.log'),
+      exists: existsSync,
+      openPath: (p) => shell.openPath(p),
+      showItemInFolder: (p) => shell.showItemInFolder(p)
+    })
+  )
   // Downloads (D31): finished notice respects DND; locked hides the name; a click shows the file in its folder.
   onDownloadDone = (ok, path) => {
     if (dnd || quietOutsideWorkHours(quietWork, quietSchedule, new Date()) || !Notification.isSupported()) return
