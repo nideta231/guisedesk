@@ -9,6 +9,11 @@ export interface IpcLike {
   on(channel: string, fn: (...a: any[]) => void): void
 }
 
+/** Wraps a one-way handler so it only runs for the app window's own sender (a popup or service view is ignored). */
+export function appOnly<E, F extends (...a: any[]) => unknown>(isApp: (e: E) => boolean, fn: F): (e: E, ...a: Parameters<F>) => ReturnType<F> | undefined {
+  return (e, ...a) => (isApp(e) ? (fn(...a) as ReturnType<F>) : undefined)
+}
+
 export function createGuardedIpc(ipc: IpcLike, isUnlocked: () => boolean) {
   return {
     /** Request/response channel: while locked the call is rejected and the handler never runs. */

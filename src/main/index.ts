@@ -32,7 +32,7 @@ import { decideNotification, quietOutsideWorkHours } from './notify'
 import { applyPermissionPolicy } from './permissions'
 import { createHibernator, launchAsleep, limitMinutes } from './hibernate'
 import { createLock, isLockShortcut } from './lock'
-import { createGuardedIpc } from './guard'
+import { appOnly, createGuardedIpc } from './guard'
 import { wireTriggers } from './triggers'
 import { resetData, RESET_WORD } from './reset'
 import { isAutostart, setAutostart, startsHidden } from './autostart'
@@ -1916,13 +1916,14 @@ function createWindow(): BrowserWindow {
     show(win, account, pushSleep)
     return snapshot()
   })
-  gipc.on('accounts:select', (_e: unknown, id: string) => {
+  // Only the app window may change the selected account; a popup or service view is ignored (like every other state channel).
+  gipc.on('accounts:select', appOnly(fromApp, (id: string) => {
     const a = enabled().find((x) => x.id === id)
     if (!a) return
     selectedId = id
     saveSelected(dir, id)
     show(win, a, pushSleep)
-  })
+  }))
   // Keyboard switching (D33): same path as a click (wakes an asleep account); the renderer follows through accounts:selected.
   // Not while locked or with a dialog/Settings open (dialogOpen covers both).
   switchKeyDown = (input) => {
