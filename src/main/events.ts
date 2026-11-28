@@ -1,7 +1,7 @@
 // Diagnostic event log (D50): <data>/events.log, one timestamped line per event (start, quit, logout, remove,
 // lost login). The user reported logins vanishing without knowing why; this records what happened around it.
 // Plain TS, no electron import. Rotated at 512 KB (one .1 copy kept).
-import { appendFileSync, existsSync, renameSync, statSync } from 'node:fs'
+import { appendFileSync, chmodSync, existsSync, renameSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 const MAX = 512 * 1024
@@ -10,7 +10,9 @@ export function appendEvent(dir: string, line: string, now: Date = new Date()): 
   try {
     const file = join(dir, 'events.log')
     if (existsSync(file) && statSync(file).size > MAX) renameSync(file, file + '.1')
-    appendFileSync(file, `${now.toISOString()} ${line.replace(/\n/g, ' ')}\n`)
+    // The log holds account labels, ids, lost-login reasons and proxy endpoints, so only the user may read it.
+    appendFileSync(file, `${now.toISOString()} ${line.replace(/\n/g, ' ')}\n`, { mode: 0o600 })
+    chmodSync(file, 0o600)
   } catch { /* logging must never break the app */ }
 }
 

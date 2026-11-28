@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { flushPromises, mount } from '@vue/test-utils'
@@ -191,6 +191,15 @@ describe('events log (D50)', () => {
     appendEvent(d, 'start v1', new Date('2026-11-27T01:00:00Z'))
     appendEvent(d, 'quit\nx', new Date('2026-11-27T01:00:05Z'))
     expect(readFileSync(join(d, 'events.log'), 'utf8')).toBe('2026-11-27T01:00:00.000Z start v1\n2026-11-27T01:00:05.000Z quit x\n')
+  })
+  it('creates events.log with mode 0600 and keeps it across rotation', () => {
+    const d = mkdtempSync(join(tmpdir(), 'gd-ev-'))
+    appendEvent(d, 'start v1')
+    expect(statSync(join(d, 'events.log')).mode & 0o777).toBe(0o600)
+    writeFileSync(join(d, 'events.log'), 'x'.repeat(512 * 1024 + 1))
+    appendEvent(d, 'after rotation')
+    expect(statSync(join(d, 'events.log')).mode & 0o777).toBe(0o600)
+    expect(statSync(join(d, 'events.log.1')).mode & 0o777).toBe(0o600)
   })
 })
 
