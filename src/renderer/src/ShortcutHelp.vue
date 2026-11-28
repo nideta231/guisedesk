@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { SHORTCUTS, type ShortcutInfo } from '../../main/shortcuts'
+import { useDialogFocus } from './useDialogFocus'
 
 const emit = defineEmits<{ close: [] }>()
+const glass = ref<HTMLElement>()
+useDialogFocus(glass)
 
 const groups = computed(() => {
   const out: { title: string; rows: ShortcutInfo[] }[] = []
@@ -17,7 +20,7 @@ const groups = computed(() => {
 
 <template>
   <div class="veil" @click.self="emit('close')">
-    <div class="glass help" role="dialog" aria-label="Keyboard shortcuts" @keydown.esc.stop="emit('close')">
+    <div ref="glass" class="glass help" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" @keydown.esc.stop="emit('close')">
       <button class="ib x" title="Close (Esc)" aria-label="Close" @click="emit('close')"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
       <h3>Keyboard shortcuts</h3>
       <div v-for="g in groups" :key="g.title" class="grp">

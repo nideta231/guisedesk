@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { backupDate, passwordProblem } from '../../main/backuprules'
+import { useDialogFocus } from './useDialogFocus'
 
 const props = defineProps<{ mode: 'export' | 'restore' }>()
 const emit = defineEmits<{ close: [] }>()
+const glass = ref<HTMLElement>()
+useDialogFocus(glass)
 
 const password = ref('')
 const repeat = ref('')
@@ -108,7 +111,7 @@ async function restore() {
 
 <template>
   <div class="veil" @click.self="close">
-    <div class="glass backup" :class="mode" role="dialog" :aria-label="title" @keydown.esc.stop="close">
+    <div ref="glass" class="glass backup" :class="mode" role="dialog" aria-modal="true" :aria-label="title" @keydown.esc.stop="close">
       <button class="ib x" title="Close (Esc)" aria-label="Close" @click="close"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
       <h3>{{ title }}</h3>
 

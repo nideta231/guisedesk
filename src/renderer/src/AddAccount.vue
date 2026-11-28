@@ -5,9 +5,13 @@ import { defaultShare, shareHosts } from '../../main/sharing'
 import { validateNewAccount, type NewAccountInput } from '../../main/validate'
 import LogoGlyph from './LogoGlyph.vue'
 import { logoStyle } from './logos'
+import { useDialogFocus } from './useDialogFocus'
 
 const props = defineProps<{ serverError?: string; accounts?: { id: string; serviceId: string; label: string; shareWith?: string }[] }>()
 const emit = defineEmits<{ add: [input: NewAccountInput]; cancel: [] }>()
+
+const glass = ref<HTMLElement>()
+useDialogFocus(glass)
 
 const COLOURS = ['#6d5bd0', '#c7772a', '#2f7fb6', '#2b8a6e', '#b04c7a', '#4a5bc4']
 // Grid order follows the mockup (Discord last before Custom URL), not the preset list order.
@@ -59,7 +63,7 @@ function submit() {
 
 <template>
   <div class="veil" @click.self="emit('cancel')">
-    <div class="glass" role="dialog" aria-label="Add an account">
+    <div ref="glass" class="glass" role="dialog" aria-modal="true" aria-label="Add an account">
       <button class="ib x" title="Close (Esc)" aria-label="Close" @click="emit('cancel')"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
       <h3>Add an account</h3>
       <p class="sub">Each account gets its own sealed session. You'll log in inside GuiseDesk right after.</p>

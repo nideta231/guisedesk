@@ -1,20 +1,21 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { ref } from 'vue'
 import { presetFor } from '../../main/presets'
 import { initials } from './initials'
+import { useDialogFocus } from './useDialogFocus'
 
 defineProps<{ url: string; candidates: { id: string; label: string; colour: string; serviceId: string }[] }>()
 const emit = defineEmits<{ choose: [choice: string | null] }>()
-const veil = ref<HTMLElement>()
-onMounted(() => veil.value?.focus())
+const glass = ref<HTMLElement>()
+useDialogFocus(glass)
 
 const short = (u: string) => (u.length > 56 ? u.slice(0, 55) + '…' : u)
 const serviceName = (id: string) => presetFor(id)?.name ?? 'Custom site'
 </script>
 
 <template>
-  <div ref="veil" class="veil" tabindex="-1" @keydown.esc.stop="emit('choose', null)" @click.self="emit('choose', null)">
-    <div class="glass" role="dialog" aria-label="Open link in">
+  <div class="veil" tabindex="-1" @keydown.esc.stop="emit('choose', null)" @click.self="emit('choose', null)">
+    <div ref="glass" class="glass" role="dialog" aria-modal="true" aria-label="Open link in">
       <button class="ib x" title="Close (Esc)" aria-label="Close" @click="emit('choose', null)"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
       <h3>Open link in</h3>
       <p class="sub url">{{ short(url) }}</p>

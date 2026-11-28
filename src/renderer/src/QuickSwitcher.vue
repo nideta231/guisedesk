@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { presetFor } from '../../main/presets'
 import { filterAccounts, moveSelection, type QuickRow } from '../../main/quick'
 import { initials } from './initials'
+import { useDialogFocus } from './useDialogFocus'
 
 const props = defineProps<{ accounts: AccountRow[] }>()
 const emit = defineEmits<{ choose: [id: string]; close: [] }>()
@@ -27,9 +28,9 @@ const active = ref(0)
 // A new query re-ranks the list; the first hit is highlighted.
 watch(list, () => (active.value = 0))
 
-const input = ref<HTMLInputElement>()
 const results = ref<HTMLElement>()
-onMounted(() => void nextTick(() => input.value?.focus()))
+const glass = ref<HTMLElement>()
+useDialogFocus(glass)
 
 // Keep the highlighted row on screen (UX-025): the list is taller than its 300px box.
 watch(active, async () => {
@@ -62,10 +63,10 @@ function onKey(e: KeyboardEvent) {
 
 <template>
   <div class="veil" @click.self="emit('close')">
-    <div class="glass switcher" role="dialog" aria-label="Quick switcher">
+    <div ref="glass" class="glass switcher" role="dialog" aria-modal="true" aria-label="Quick switcher">
       <button class="ib x" title="Close (Esc)" aria-label="Close" @click="emit('close')"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
       <h3>Quick switcher</h3>
-      <input ref="input" v-model="query" class="inp search" placeholder="Search accounts..." aria-label="Search accounts" @keydown="onKey" />
+      <input v-model="query" class="inp search" placeholder="Search accounts..." aria-label="Search accounts" @keydown="onKey" />
       <div ref="results" class="results">
         <div
           v-for="(r, i) in list"

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { presetFor } from '../../main/presets'
 import { filterInbox, groupInbox, searchInbox, unreadCount } from '../../main/inbox'
 import { initials } from './initials'
+import { useDialogFocus } from './useDialogFocus'
 
 const props = defineProps<{ items: InboxItem[]; accounts: AccountRow[]; disabled?: string[] }>()
 const emit = defineEmits<{ close: []; select: [accountId: string, itemId: string]; unread: [id: string]; 'read-all': []; clear: []; 'open-services': [] }>()
@@ -10,7 +11,8 @@ const emit = defineEmits<{ close: []; select: [accountId: string, itemId: string
 const filter = ref('')
 const search = ref('')
 const veil = ref<HTMLElement>()
-onMounted(() => veil.value?.focus())
+const glass = ref<HTMLElement>()
+useDialogFocus(glass)
 
 const byId = computed(() => new Map(props.accounts.map((a) => [a.id, a])))
 const labels = computed(() => Object.fromEntries(props.accounts.map((a) => [a.id, a.label])))
@@ -41,7 +43,7 @@ function openItem(i: InboxItem) {
 
 <template>
   <div ref="veil" class="veil" tabindex="-1" @click.self="emit('close')" @keydown.esc.stop="emit('close')">
-    <div class="glass inbox" role="dialog" aria-label="Notifications">
+    <div ref="glass" class="glass inbox" role="dialog" aria-modal="true" aria-label="Notifications">
       <button class="ib x" title="Close (Esc)" aria-label="Close" @click="emit('close')"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
       <h3>Notifications</h3>
       <div class="bar">

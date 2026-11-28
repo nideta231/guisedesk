@@ -99,6 +99,45 @@ describe('first-run empty state (UX-003)', () => {
   })
 })
 
+describe('dialog focus trap (UX-039)', () => {
+  it('is aria-modal, moves focus inside, wraps Tab both ways and restores the outside element', async () => {
+    const outside = document.createElement('button')
+    outside.textContent = 'outside'
+    document.body.appendChild(outside)
+    outside.focus()
+    const w = mount(AddAccount, { props: { accounts: [] }, attachTo: document.body })
+    await flushPromises()
+    expect(w.find('.glass').attributes('aria-modal')).toBe('true')
+    expect(w.find('.glass').element.contains(document.activeElement)).toBe(true)
+    const els = w.findAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')
+    const first = els[0].element as HTMLElement
+    const last = els[els.length - 1].element as HTMLElement
+    last.focus()
+    await w.find('.glass').trigger('keydown', { key: 'Tab' })
+    expect(document.activeElement).toBe(first)
+    first.focus()
+    await w.find('.glass').trigger('keydown', { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(last)
+    w.unmount()
+    expect(document.activeElement).toBe(outside)
+    outside.remove()
+  })
+
+  it('marks every dialog aria-modal', async () => {
+    const { default: Inbox } = await import('../src/renderer/src/Inbox.vue')
+    const { default: QuickSwitcher } = await import('../src/renderer/src/QuickSwitcher.vue')
+    const { default: ShortcutHelp } = await import('../src/renderer/src/ShortcutHelp.vue')
+    const { default: BackupDialog } = await import('../src/renderer/src/BackupDialog.vue')
+    const { default: LinkChooser } = await import('../src/renderer/src/LinkChooser.vue')
+    expect(mount(AccountSheet, { props: { account: acc } }).find('.glass').attributes('aria-modal')).toBe('true')
+    expect(mount(Inbox, { props: { items: [], accounts: [] } }).find('.glass').attributes('aria-modal')).toBe('true')
+    expect(mount(QuickSwitcher, { props: { accounts: [] } }).find('.glass').attributes('aria-modal')).toBe('true')
+    expect(mount(ShortcutHelp).find('.glass').attributes('aria-modal')).toBe('true')
+    expect(mount(BackupDialog, { props: { mode: 'export' } }).find('.glass').attributes('aria-modal')).toBe('true')
+    expect(mount(LinkChooser, { props: { url: 'https://x.test', candidates: [] } }).find('.glass').attributes('aria-modal')).toBe('true')
+  })
+})
+
 describe('visible keyboard focus (UX-038)', () => {
   const css = readFileSync('src/renderer/src/styles/tokens.css', 'utf8')
 

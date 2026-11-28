@@ -7,6 +7,7 @@ import { onPartition } from '../../main/sharing'
 import { initials } from './initials'
 import LogoGlyph from './LogoGlyph.vue'
 import { logoStyle } from './logos'
+import { useDialogFocus } from './useDialogFocus'
 
 const props = defineProps<{
   account: {
@@ -18,6 +19,9 @@ const props = defineProps<{
   proxyError?: string
 }>()
 const emit = defineEmits<{ policy: [value: string]; mute: [muted: boolean]; blur: [on: boolean]; blurPart: [part: string, on: boolean]; keepDeleted: [on: boolean]; proxy: [value: string]; edit: [label: string, colour: string]; logout: []; remove: []; done: [] }>()
+
+const glass = ref<HTMLElement>()
+useDialogFocus(glass)
 
 // Name and colour (UX-016): the header drafts a change; Save sends it, Cancel/Esc put the saved values back.
 const COLOURS = ['#6d5bd0', '#c7772a', '#2f7fb6', '#2b8a6e', '#b04c7a', '#4a5bc4']
@@ -107,7 +111,7 @@ function logout() {
 
 <template>
   <div class="veil" @click.self="emit('done')">
-    <div class="glass sheet" role="dialog" :aria-label="`${account.label} settings`" @keydown.esc="onEditEsc">
+    <div ref="glass" class="glass sheet" role="dialog" aria-modal="true" :aria-label="`${account.label} settings`" @keydown.esc="onEditEsc">
       <button class="ib x" title="Close (Esc)" aria-label="Close" @click="emit('done')"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
       <div class="sh">
         <span class="av big" :style="{ background: colourDraft }">{{ initials(labelDraft) }}<span class="svc" :style="logoStyle(account.serviceId)"><LogoGlyph :service-id="account.serviceId" :icon="account.custom?.icon" /></span></span>
