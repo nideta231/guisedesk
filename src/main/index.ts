@@ -29,7 +29,7 @@ import { normalizeSchedule, type LockSchedule } from './schedule'
 import { parseUnread, totalUnread } from './unread'
 import { createTray } from './tray'
 import { decideNotification, quietOutsideWorkHours } from './notify'
-import { permissionAllowed } from './permissions'
+import { applyPermissionPolicy } from './permissions'
 import { createHibernator, launchAsleep, limitMinutes } from './hibernate'
 import { createLock, isLockShortcut } from './lock'
 import { createGuardedIpc } from './guard'
@@ -295,6 +295,7 @@ function openPopup(a: Account, url: string): void {
   const go = hookNav(wc, a)
   trackGestures(wc, a.id, false)
   hookBlocking(wc.session)
+  applyPermissionPolicy(wc.session)
   wc.setWindowOpenHandler(({ url: u, disposition }) => {
     if (blockedPopup(wc, a.id, u, disposition)) return { action: 'deny' }
     const r = route(u, a)
@@ -670,8 +671,7 @@ function viewFor(a: Account): WebContentsView {
     const ses = v.webContents.session
     hookDownloads(ses)
     hookBlocking(ses)
-    ses.setPermissionRequestHandler((_wc, permission, cb) => cb(permissionAllowed(permission)))
-    ses.setPermissionCheckHandler((_wc, permission) => permissionAllowed(permission))
+    applyPermissionPolicy(ses)
     const preset = presetFor(a.serviceId)
     v.setBorderRadius(VIEW_RADIUS)
     v.webContents.setUserAgent(preset?.userAgent ?? CHROME_UA)
