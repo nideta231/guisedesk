@@ -26,3 +26,13 @@ export function trayLook(total: number, locked: boolean): { icon: string; toolti
     ? { icon: 'tray-dot.png', tooltip: `GuiseDesk (${total} unread)` }
     : { icon: 'tray.png', tooltip: 'GuiseDesk' }
 }
+
+export type TrayIcon = 'plain' | 'dot'
+
+/** Which image an update needs: 'same' while the look stays dot or plain, so the PNG is not read again for a count change. */
+export function trayChange(prev: { total: number; locked: boolean }, next: { total: number; locked: boolean }): TrayIcon | 'same' {
+  const before = trayLook(prev.total, prev.locked).icon
+  const after = trayLook(next.total, next.locked).icon
+  if (before === after) return 'same'
+  return after === 'tray-dot.png' ? 'dot' : 'plain'
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { trayLook, trayTemplate } from '../src/main/traymenu'
+import { trayChange, trayLook, trayTemplate } from '../src/main/traymenu'
 
 describe('trayTemplate', () => {
   it('has a Do Not Disturb checkbox that reflects the state and reports the new one', () => {
@@ -29,6 +29,16 @@ describe('trayLook', () => {
     expect(trayLook(3, false)).toEqual({ icon: 'tray-dot.png', tooltip: 'GuiseDesk (3 unread)' })
     expect(trayLook(0, false)).toEqual({ icon: 'tray.png', tooltip: 'GuiseDesk' })
     expect(trayLook(3, true)).toEqual({ icon: 'tray.png', tooltip: 'GuiseDesk' })
+  })
+})
+
+describe('trayChange', () => {
+  it('asks for a new image only when the dot state changes', () => {
+    expect(trayChange({ total: 3, locked: false }, { total: 4, locked: false })).toBe('same')
+    expect(trayChange({ total: 0, locked: false }, { total: 1, locked: false })).toBe('dot')
+    expect(trayChange({ total: 1, locked: false }, { total: 0, locked: false })).toBe('plain')
+    expect(trayChange({ total: 3, locked: false }, { total: 3, locked: true })).toBe('plain')
+    expect(trayChange({ total: 0, locked: true }, { total: 0, locked: false })).toBe('same')
   })
 })
 
