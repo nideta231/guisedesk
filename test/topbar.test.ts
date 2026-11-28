@@ -226,6 +226,38 @@ describe('TopBar Home (UX-014)', () => {
   })
 })
 
+describe('TopBar Split (UX-015)', () => {
+  it('disables Split with no other account, enables it with one, and Close split stays active', async () => {
+    const none = mount(TopBar, { props: { account: wa, asleep: false, others: 0 } })
+    const b = none.find('.splitbtn')
+    expect(b.attributes('disabled')).toBeDefined()
+    expect(b.attributes('title')).toBe('Add another account to use split view')
+    await b.trigger('click')
+    expect(none.emitted('split-menu')).toBeUndefined()
+
+    const one = mount(TopBar, { props: { account: wa, asleep: false, others: 1 } })
+    expect(one.find('.splitbtn').attributes('disabled')).toBeUndefined()
+    expect(one.find('.splitbtn').attributes('title')).toBe('Show a second account side by side')
+    await one.find('.splitbtn').trigger('click')
+    expect(one.emitted('split-menu')).toHaveLength(1)
+
+    const on = mount(TopBar, { props: { account: wa, asleep: false, others: 0, split: true } })
+    expect(on.find('.splitbtn').text()).toBe('Close split')
+    expect(on.find('.splitbtn').attributes('disabled')).toBeUndefined()
+    await on.find('.splitbtn').trigger('click')
+    expect(on.emitted('close-split')).toHaveLength(1)
+  })
+
+  it('App counts only visible other accounts, so a switched-off service does not enable Split', async () => {
+    const single = await app({ state: async () => ({ accounts: [wa], selectedId: 'wa1', disabledServices: [] }) })
+    expect(single.w.find('.splitbtn').attributes('disabled')).toBeDefined()
+    const off = await app({ state: async () => ({ accounts: [wa, ig], selectedId: 'wa1', disabledServices: ['instagram'] }) })
+    expect(off.w.find('.splitbtn').attributes('disabled')).toBeDefined()
+    const both = await app()
+    expect(both.w.find('.splitbtn').attributes('disabled')).toBeUndefined()
+  })
+})
+
 describe('TopBar Back and Forward (UX-013)', () => {
   it('shows both disabled without history, enabled with it, and emits the direction', async () => {
     const off = mount(TopBar, { props: { account: wa, asleep: false, nav: { canBack: false, canForward: false } } })
